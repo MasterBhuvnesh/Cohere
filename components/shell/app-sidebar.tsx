@@ -6,14 +6,18 @@ import {
   Bot,
   Box,
   ChevronDown,
+  FolderKanban,
+  PanelLeft,
+  PanelLeftClose,
   Plus,
   RefreshCcw,
   Search,
+  Settings,
   SquarePen,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,26 +37,38 @@ function NavLink({
   icon,
   children,
   exact = false,
+  collapsed = false,
 }: {
   href: string;
   icon: ReactNode;
   children: ReactNode;
   exact?: boolean;
+  collapsed?: boolean;
 }) {
   const pathname = usePathname();
   const active = exact ? pathname === href : pathname.startsWith(href);
-  return (
+  const link = (
     <Link
       href={href}
       className={cn(
-        "flex h-7 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+        "flex h-7 items-center rounded-md text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+        collapsed ? "justify-center" : "gap-2 px-2",
         active && "bg-accent text-foreground"
       )}
     >
       {icon}
-      <span className="truncate">{children}</span>
+      {!collapsed && <span className="truncate">{children}</span>}
     </Link>
   );
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent side="right">{children}</TooltipContent>
+      </Tooltip>
+    );
+  }
+  return link;
 }
 
 export function AppSidebar() {
@@ -60,92 +76,148 @@ export function AppSidebar() {
   const teams = useQuery(api.teams.list);
   const { openCreateIssue, openPalette } = useCommands();
   const [createTeamOpen, setCreateTeamOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const base = `/${params.orgSlug}`;
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        setCollapsed((c) => !c);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar">
-      <div className="flex items-center justify-between gap-2 p-3">
-        <OrganizationSwitcher
-          hidePersonal
-          afterSelectOrganizationUrl="/:slug"
-          afterCreateOrganizationUrl="/:slug"
-          appearance={{
-            elements: {
-              rootBox: "min-w-0",
-              organizationSwitcherTrigger: "max-w-44",
-            },
-          }}
-        />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              onClick={openCreateIssue}
-              aria-label="New issue"
-            >
-              <SquarePen className="size-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">New issue (C)</TooltipContent>
-        </Tooltip>
+    <aside
+      data-slot="sidebar"
+      className={cn(
+        "flex shrink-0 flex-col border-r bg-sidebar transition-[width] duration-200",
+        collapsed ? "w-14" : "w-64"
+      )}
+    >
+      <div
+        className={cn(
+          "flex gap-2 p-3",
+          collapsed ? "flex-col items-center" : "items-center justify-between"
+        )}
+      >
+        {!collapsed && (
+          <div className="min-w-0 flex-1">
+            <OrganizationSwitcher
+              hidePersonal
+              afterSelectOrganizationUrl="/:slug"
+              afterCreateOrganizationUrl="/:slug"
+              appearance={{
+                elements: {
+                  rootBox: "min-w-0 w-full",
+                  organizationSwitcherTrigger: "max-w-full",
+                },
+              }}
+            />
+          </div>
+        )}
+        <div className={cn("flex shrink-0 gap-1", collapsed && "flex-col")}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                onClick={openCreateIssue}
+                aria-label="New issue"
+              >
+                <SquarePen className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">New issue (C)</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                onClick={() => setCollapsed((c) => !c)}
+                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {collapsed ? (
+                  <PanelLeft className="size-4" />
+                ) : (
+                  <PanelLeftClose className="size-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {collapsed ? "Expand sidebar" : "Collapse sidebar"} (⌘B)
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
-      <div className="px-3 pb-2">
-        <button
-          onClick={openPalette}
-          className="flex h-7 w-full items-center gap-2 rounded-md border bg-background px-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Search className="size-3.5" />
-          Search…
-          <kbd className="ml-auto rounded border bg-muted px-1 font-mono text-[10px]">
-            ⌘ K
-          </kbd>
-        </button>
+      <div className={cn("pb-2", collapsed ? "flex justify-center" : "px-3")}>
+        {collapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                onClick={openPalette}
+                aria-label="Search"
+              >
+                <Search className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Search (⌘K)</TooltipContent>
+          </Tooltip>
+        ) : (
+          <button
+            onClick={openPalette}
+            className="flex h-7 w-full items-center gap-2 rounded-md border bg-background px-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Search className="size-3.5" />
+            Search…
+            <kbd className="ml-auto rounded border bg-muted px-1 font-mono text-[10px]">
+              ⌘ K
+            </kbd>
+          </button>
+        )}
       </div>
 
-      <ScrollArea className="flex-1 px-3">
+      <ScrollArea className={cn("flex-1", collapsed ? "px-2" : "px-3")}>
         <nav className="flex flex-col gap-0.5 pb-2">
-          <NavLink href={base} exact icon={<Box className="size-4" />}>
+          <NavLink href={base} exact collapsed={collapsed} icon={<Box className="size-4" />}>
             Workspace
           </NavLink>
-          {/* Track B adds /projects + /cycles nav; Track D adds /ai nav */}
-          <NavLink href={`${base}/projects`} icon={<Box className="size-4" />}>
+          <NavLink
+            href={`${base}/projects`}
+            collapsed={collapsed}
+            icon={<FolderKanban className="size-4" />}
+          >
             Projects
           </NavLink>
           <NavLink
             href={`${base}/cycles`}
+            collapsed={collapsed}
             icon={<RefreshCcw className="size-4" />}
           >
             Cycles
           </NavLink>
-          <NavLink href={`${base}/ai`} icon={<Bot className="size-4" />}>
+          <NavLink href={`${base}/ai`} collapsed={collapsed} icon={<Bot className="size-4" />}>
             AI Agent
           </NavLink>
         </nav>
 
-        <Collapsible defaultOpen className="pb-4">
-          <div className="flex items-center justify-between">
-            <CollapsibleTrigger className="flex items-center gap-1 py-1 text-xs font-medium text-muted-foreground hover:text-foreground">
-              Your teams
-              <ChevronDown className="size-3" />
-            </CollapsibleTrigger>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-5"
-              onClick={() => setCreateTeamOpen(true)}
-              aria-label="Create team"
-            >
-              <Plus className="size-3.5" />
-            </Button>
-          </div>
-          <CollapsibleContent className="flex flex-col gap-0.5 pt-1">
+        {collapsed ? (
+          <div className="flex flex-col gap-0.5 pb-4 pt-1">
             {teams?.map((team) => (
               <NavLink
                 key={team._id}
                 href={`${base}/team/${team._id}`}
+                collapsed
                 icon={
                   <span className="flex size-4 items-center justify-center rounded bg-primary/15 text-[9px] font-semibold text-primary">
                     {team.key.slice(0, 2)}
@@ -155,22 +227,75 @@ export function AppSidebar() {
                 {team.name}
               </NavLink>
             ))}
-            {teams?.length === 0 && (
-              <button
+          </div>
+        ) : (
+          <Collapsible defaultOpen className="pb-4">
+            <div className="flex items-center justify-between">
+              <CollapsibleTrigger className="flex items-center gap-1 py-1 text-xs font-medium text-muted-foreground hover:text-foreground">
+                Your teams
+                <ChevronDown className="size-3" />
+              </CollapsibleTrigger>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-5"
                 onClick={() => setCreateTeamOpen(true)}
-                className="flex h-7 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+                aria-label="Create team"
               >
-                <Plus className="size-4" />
-                Create your first team
-              </button>
-            )}
-          </CollapsibleContent>
-        </Collapsible>
+                <Plus className="size-3.5" />
+              </Button>
+            </div>
+            <CollapsibleContent className="flex flex-col gap-0.5 pt-1">
+              {teams?.map((team) => (
+                <NavLink
+                  key={team._id}
+                  href={`${base}/team/${team._id}`}
+                  icon={
+                    <span className="flex size-4 items-center justify-center rounded bg-primary/15 text-[9px] font-semibold text-primary">
+                      {team.key.slice(0, 2)}
+                    </span>
+                  }
+                >
+                  {team.name}
+                </NavLink>
+              ))}
+              {teams?.length === 0 && (
+                <button
+                  onClick={() => setCreateTeamOpen(true)}
+                  className="flex h-7 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <Plus className="size-4" />
+                  Create your first team
+                </button>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        )}
       </ScrollArea>
 
-      <div className="flex items-center justify-between border-t p-3">
+      <div
+        className={cn(
+          "flex border-t p-3",
+          collapsed
+            ? "flex-col items-center gap-2"
+            : "items-center justify-between"
+        )}
+      >
         <UserButton />
-        <ThemeToggle />
+        <div className={cn("flex gap-1", collapsed && "flex-col items-center")}>
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            aria-label="Settings"
+          >
+            <Link href={`${base}/settings`}>
+              <Settings className="size-4" />
+            </Link>
+          </Button>
+          <ThemeToggle />
+        </div>
       </div>
 
       <CreateTeamDialog open={createTeamOpen} onOpenChange={setCreateTeamOpen} />
