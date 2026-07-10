@@ -11,3 +11,6 @@ Convex agent skills for common tasks can be installed by running
 `npx convex ai-files install`.
 
 <!-- convex-ai-end -->
+
+<!-- claude-rules -->
+RULES.md contains rules the Claude agent must follow when working in this repository. Please read it before asking Claude to make any changes.
