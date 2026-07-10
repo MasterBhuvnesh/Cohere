@@ -34,7 +34,11 @@ const failure = v.object({ ok: v.literal(false), error: v.string() });
 
 /** Labels + recent issues the model may reference, never invented ids. */
 export const draftContext = internalQuery({
-  args: { orgId: v.id("organizations"), teamId: v.id("teams") },
+  args: {
+    orgId: v.id("organizations"),
+    teamId: v.id("teams"),
+    projectId: v.optional(v.id("projects")),
+  },
   returns: v.object({
     teamName: v.string(),
     orgLabels: v.array(
@@ -61,11 +65,19 @@ export const draftContext = internalQuery({
       .query("labels")
       .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
       .collect();
-    const recent = await ctx.db
-      .query("issues")
-      .withIndex("by_team", (q) => q.eq("teamId", args.teamId))
-      .order("desc")
-      .take(80);
+    // Scope relation candidates to the chosen project when set; otherwise the
+    // whole team's recent issues.
+    const recent = args.projectId
+      ? await ctx.db
+          .query("issues")
+          .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+          .order("desc")
+          .take(80)
+      : await ctx.db
+          .query("issues")
+          .withIndex("by_team", (q) => q.eq("teamId", args.teamId))
+          .order("desc")
+          .take(80);
     return {
       teamName: team.name,
       orgLabels: orgLabels.map((label) => ({
@@ -116,7 +128,11 @@ type DraftResult =
     };
 
 export const draftIssue = action({
-  args: { idea: v.string(), teamId: v.id("teams") },
+  args: {
+    idea: v.string(),
+    teamId: v.id("teams"),
+    projectId: v.optional(v.id("projects")),
+  },
   returns: v.union(
     failure,
     v.object({
@@ -153,6 +169,7 @@ export const draftIssue = action({
     const context = await ctx.runQuery(internal.agent.draft.draftContext, {
       orgId: auth.orgId,
       teamId: args.teamId,
+      projectId: args.projectId,
     });
     if (!isAiConfigured()) {
       return { ok: false as const, error: AI_NOT_CONFIGURED_MESSAGE };
