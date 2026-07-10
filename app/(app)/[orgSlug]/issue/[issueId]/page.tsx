@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Streamdown } from "streamdown";
 import { api } from "@/convex/_generated/api";
 import { Doc, Id } from "@/convex/_generated/dataModel";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -70,6 +71,7 @@ function IssueDetail({
   const updateIssue = useMutation(api.issues.update);
   const [title, setTitle] = useState(issue.title);
   const [description, setDescription] = useState(issue.description ?? "");
+  const [editingDesc, setEditingDesc] = useState(false);
 
   const identifier = `${team.key}-${issue.number}`;
 
@@ -85,6 +87,7 @@ function IssueDetail({
   };
 
   const saveDescription = () => {
+    setEditingDesc(false);
     if (description === (issue.description ?? "")) {
       return;
     }
@@ -123,13 +126,33 @@ function IssueDetail({
               rows={1}
               className="min-h-0 resize-none border-none px-0 text-2xl font-semibold shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              onBlur={saveDescription}
-              placeholder="Add description…"
-              className="min-h-32 resize-none border-none px-0 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
-            />
+            {editingDesc || !description.trim() ? (
+              <Textarea
+                autoFocus={editingDesc}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                onBlur={saveDescription}
+                placeholder="Add description…"
+                className="min-h-32 resize-none border-none px-0 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
+              />
+            ) : (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setEditingDesc(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setEditingDesc(true);
+                  }
+                }}
+                title="Edit description"
+                className="min-h-32 cursor-text rounded-md"
+              >
+                <Streamdown className="text-sm leading-relaxed [&_a]:underline [&_code]:text-xs">
+                  {description}
+                </Streamdown>
+              </div>
+            )}
             {issueDetailMainSlots.map((Slot, index) => (
               <Slot key={index} issue={issue} team={team} />
             ))}
