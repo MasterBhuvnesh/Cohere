@@ -1,11 +1,113 @@
-# Configuring the GitHub Integration
+# Configuring Cohere
+
+Everything needed to get a Cohere deployment running: app setup (Clerk +
+Convex + env vars) first, then the GitHub integration.
+
+## App setup
+
+### Prerequisites
+
+- Node.js 18+ and pnpm
+- Accounts on [Clerk](https://clerk.com), [Convex](https://convex.dev), and an [OpenAI](https://platform.openai.com) API key
+
+### 1. Install
+
+```bash
+pnpm install
+```
+
+### 2. Environment variables
+
+Create `.env.local` in the project root (see `.env.example`):
+
+```env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_CLERK_FRONTEND_API_URL=https://your-instance.clerk.accounts.dev
+
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/onboarding
+NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/onboarding
+
+CONVEX_DEPLOYMENT=dev:your-deployment
+NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
+NEXT_PUBLIC_CONVEX_SITE_URL=https://your-deployment.convex.site
+```
+
+Never commit `.env.local`.
+
+### 3. Configure Clerk
+
+1. Create a Clerk application and copy the keys into `.env.local`
+2. Enable Organizations
+3. Create a JWT template named exactly `convex` with these claims:
+
+```json
+{
+  "org_id": "{{org.id}}",
+  "org_slug": "{{org.slug}}",
+  "org_role": "{{org.role}}"
+}
+```
+
+4. Set up Billing with three organization plans: `free_org`, `pro`, `enterprise`
+5. Attach features to the paid plans: `ai_agent`, `unlimited_projects`, `unlimited_issues`, `unlimited_seats`, `unlimited_ai`, `priority_support`
+6. Copy your plan IDs into [`lib/plans.ts`](../lib/plans.ts)
+
+### 4. Configure Convex
+
+Run `npx convex dev` to create or link a project, then set env vars on the deployment:
+
+```bash
+npx convex env set CLERK_FRONTEND_API_URL https://your-instance.clerk.accounts.dev
+npx convex env set CLERK_WEBHOOK_SECRET whsec_...
+npx convex env set OPENAI_API_KEY sk-...
+```
+
+### 5. Configure Clerk webhooks
+
+1. In Clerk, create a webhook endpoint pointing to `https://your-deployment.convex.site/clerk-webhook` (note `.convex.site`, not `.convex.cloud`)
+2. Subscribe to `user.*`, `organization.*`, `organizationMembership.*`, and all `subscription.*` / `subscriptionItem.*` events
+3. Copy the signing secret into the Convex env var `CLERK_WEBHOOK_SECRET`
+
+### 6. Run
+
+```bash
+pnpm dev
+```
+
+Runs Next.js and Convex in parallel. Open [http://localhost:3000](http://localhost:3000), sign up, create an organization, and you are in.
+
+### Deployment
+
+1. Deploy the frontend to [Vercel](https://vercel.com) and add all `.env.local` variables
+2. Run `npx convex deploy` and set `CLERK_FRONTEND_API_URL`, `CLERK_WEBHOOK_SECRET`, and `OPENAI_API_KEY` on the production Convex deployment
+3. Point the Clerk webhook at the production Convex HTTP URL and switch to production Clerk keys
+4. Test end to end: sign up, create org, create issue, upgrade plan, AI chat
+
+### Troubleshooting
+
+| Problem                                  | Fix                                                                                  |
+| ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| "Not authenticated" errors from Convex   | JWT template must be named exactly `convex`; set `CLERK_FRONTEND_API_URL` on Convex  |
+| Org pages 404 or redirect to onboarding  | JWT template needs `org_id` / `org_slug` / `org_role` claims and an active org       |
+| Webhook returns 400                      | Signing secret must match `CLERK_WEBHOOK_SECRET` (not `CLERK_SECRET_KEY`)            |
+| User missing in Convex after sign-up     | Webhook URL must end with `/clerk-webhook` on the `.convex.site` domain              |
+| Plan not updating after checkout         | Subscribe to all `subscription.*` and `subscriptionItem.*` webhook events            |
+| AI chat errors immediately               | Set `OPENAI_API_KEY` on the Convex deployment                                        |
+| Convex types not updating                | Keep `npx convex dev` running                                                        |
+
+---
+
+## GitHub integration
 
 Cohere's GitHub integration is a [GitHub App](https://docs.github.com/en/apps).
 Creating the app is a one-time step per deployment; after that, every
 workspace connects itself with one click (Settings → Integrations → Connect)
 and picks which repositories to grant.
 
-## 1. Create the GitHub App
+### 1. Create the GitHub App
 
 GitHub → Settings → Developer settings → GitHub Apps → **New GitHub App**.
 
@@ -49,7 +151,7 @@ under Repository permissions: **Issues: Read and write**. Then, on the app
 page after creation, note the **App ID** and generate a **private key**
 ("Private keys" → Generate) — a `.pem` file downloads.
 
-## 2. Set Convex environment variables
+### 2. Set Convex environment variables
 
 The app slug is in the app page URL: `github.com/settings/apps/<slug>`.
 
@@ -80,7 +182,7 @@ npx convex env set GITHUB_PRIVATE_KEY "$(base64 -w0 path/to/key.pem)"
 Keep the `.pem` outside the repo — especially never in `public/`, which is
 served verbatim by Next.js.
 
-## 3. Connect a workspace
+### 3. Connect a workspace
 
 In Cohere: Settings → Integrations → **Connect** (workspace admins only).
 GitHub opens its install screen where you select one, several, or all
@@ -88,7 +190,7 @@ repositories, then redirects you back to the settings page. The granted
 repositories appear as chips and can be changed any time from the GitHub
 App's installation settings — the list re-syncs automatically.
 
-## How it works
+### How it works
 
 - **Connect** mints a single-use nonce (valid 15 minutes) bound to your
   workspace and user, and sends you to
