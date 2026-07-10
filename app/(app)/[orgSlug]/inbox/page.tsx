@@ -8,6 +8,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatRelativeTime } from "@/components/issue-detail/format";
+import { GithubIcon } from "@/components/shared/github-icon";
 import { STATUSES } from "@/components/shared/issue-meta";
 import { cn } from "@/lib/utils";
 
@@ -99,7 +100,9 @@ export default function InboxPage() {
                   notification.read ? "bg-transparent" : "bg-primary"
                 )}
               />
-              {notification.actorImageUrl ? (
+              {notification.systemActor === "github" ? (
+                <GithubIcon className="mt-0.5 size-5 shrink-0" />
+              ) : notification.actorImageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={notification.actorImageUrl}

@@ -30,6 +30,7 @@ import {
   priorityLabel,
   statusLabel,
 } from "@/components/shared/issue-meta";
+import { GithubIcon } from "@/components/shared/github-icon";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
 
@@ -136,6 +137,19 @@ function describeActivity(entry: ActivityEntry): ReactNode {
           removed attachment <Emphasis>{oldValue}</Emphasis>
         </>
       );
+    case "github_issue_created":
+      return (
+        <>
+          created GitHub issue <Emphasis>{newValue}</Emphasis>
+        </>
+      );
+    case "github_sync_failed":
+      return (
+        <>
+          couldn&apos;t sync this issue to GitHub —{" "}
+          <Emphasis>{newValue}</Emphasis>
+        </>
+      );
     default:
       if (field) {
         return (
@@ -237,11 +251,15 @@ export function ActivitySection({ issue }: IssueDetailSlotProps) {
                 key={item.key}
                 className="flex items-center gap-2 pl-1 text-xs text-muted-foreground"
               >
-                <UserAvatar
-                  name={item.entry.actorName}
-                  imageUrl={item.entry.actorImageUrl}
-                  className="size-4"
-                />
+                {item.entry.systemActor === "github" ? (
+                  <GithubIcon className="size-4 shrink-0" />
+                ) : (
+                  <UserAvatar
+                    name={item.entry.actorName}
+                    imageUrl={item.entry.actorImageUrl}
+                    className="size-4"
+                  />
+                )}
                 <span className="min-w-0">
                   <span className="font-medium text-foreground">
                     {item.entry.actorName}

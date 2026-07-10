@@ -338,8 +338,7 @@ export const handlePullRequest = internalMutation({
         });
       }
 
-      // Status transitions. Actor is whoever connected the integration —
-      // there is no Cohere user for the GitHub actor.
+      // Status transitions, attributed to the GitHub system actor.
       const nextStatus =
         state === "merged" &&
         issue.status !== "done" &&
@@ -359,7 +358,7 @@ export const handlePullRequest = internalMutation({
       await logActivity(ctx, {
         orgId,
         issueId: issue._id,
-        actorId: integration.connectedBy,
+        systemActor: "github",
         type: "status_changed",
         field: "status",
         oldValue: issue.status,
@@ -374,7 +373,7 @@ export const handlePullRequest = internalMutation({
         await createNotification(ctx, {
           orgId,
           userId,
-          actorId: integration.connectedBy,
+          systemActor: "github",
           issueId: issue._id,
           type: "status_changed",
           newValue: nextStatus,

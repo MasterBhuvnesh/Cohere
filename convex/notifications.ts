@@ -6,21 +6,25 @@ import { notificationTypeValidator } from "./schema";
 
 /**
  * Insert an in-app notification. Skips self-notifications so actors never
- * hear about their own edits. Shared by comments.create (mentions) and
- * issues.update (assignments, status changes).
+ * hear about their own edits. Automated events pass `systemActor` instead
+ * of `actorId` (e.g. the GitHub integration).
  */
 export async function createNotification(
   ctx: MutationCtx,
   args: {
     orgId: Id<"organizations">;
     userId: Id<"users">;
-    actorId: Id<"users">;
+    actorId?: Id<"users">;
+    systemActor?: "github";
     issueId: Id<"issues">;
     type: Doc<"notifications">["type"];
     newValue?: string;
     commentId?: Id<"comments">;
   }
 ): Promise<void> {
+  if (!args.actorId && !args.systemActor) {
+    throw new Error("Notification needs an actor");
+  }
   if (args.userId === args.actorId) {
     return;
   }
@@ -35,6 +39,8 @@ const enrichedNotificationValidator = v.object({
   newValue: v.optional(v.string()),
   actorName: v.string(),
   actorImageUrl: v.optional(v.string()),
+  /** Set for automated events; the UI shows the integration's logo. */
+  systemActor: v.optional(v.literal("github")),
   issueId: v.id("issues"),
   /** Display identifier, e.g. ENG-42. */
   identifier: v.string(),
@@ -64,10 +70,16 @@ export const list = orgQuery({
       if (!issue) {
         continue; // issue deleted since; stale notification is just hidden
       }
-      if (!userCache.has(notification.actorId)) {
-        userCache.set(notification.actorId, await ctx.db.get(notification.actorId));
+      let actor: Doc<"users"> | null = null;
+      if (notification.actorId) {
+        if (!userCache.has(notification.actorId)) {
+          userCache.set(
+            notification.actorId,
+            await ctx.db.get(notification.actorId)
+          );
+        }
+        actor = userCache.get(notification.actorId) ?? null;
       }
-      const actor = userCache.get(notification.actorId) ?? null;
       if (!teamCache.has(issue.teamId)) {
         teamCache.set(issue.teamId, await ctx.db.get(issue.teamId));
       }
@@ -82,8 +94,12 @@ export const list = orgQuery({
         type: notification.type,
         read: notification.read,
         newValue: notification.newValue,
-        actorName: actor?.name ?? "Someone",
+        actorName:
+          notification.systemActor === "github"
+            ? "GitHub"
+            : (actor?.name ?? "Someone"),
         actorImageUrl: actor?.imageUrl,
+        systemActor: notification.systemActor,
         issueId: issue._id,
         identifier: `${team?.key ?? "?"}-${issue.number}`,
         issueTitle: issue.title,

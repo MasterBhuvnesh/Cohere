@@ -1,8 +1,10 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
-import { Trash2 } from "lucide-react";
+import { useAction, useMutation, useQuery } from "convex/react";
+import { Loader2, Plus, Trash2, X } from "lucide-react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { Doc, Id } from "@/convex/_generated/dataModel";
@@ -18,6 +20,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -26,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { GithubIcon } from "@/components/shared/github-icon";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
 import { inputDateToMs, msToInputDate } from "./dates";
@@ -54,10 +63,15 @@ type ProjectPatch = {
   leadId?: Id<"users"> | null;
   targetDate?: number | null;
   color?: string | null;
-  githubRepo?: string | null;
+  githubRepos?: string[];
 };
 
-const NO_REPO = "no-repo";
+type RepoMeta = {
+  fullName: string;
+  owner: string;
+  name: string;
+  private: boolean;
+};
 
 export function ProjectProperties({ project }: { project: Doc<"projects"> }) {
   const params = useParams<{ orgSlug: string }>();
@@ -66,17 +80,42 @@ export function ProjectProperties({ project }: { project: Doc<"projects"> }) {
   const integration = useQuery(api.integrations.get);
   const updateProject = useMutation(api.projects.update);
   const removeProject = useMutation(api.projects.remove);
+  const listRepositories = useAction(api.github.client.listRepositories);
 
-  // Repos granted to the GitHub App install; include the saved value even
-  // if access was since revoked so it stays visible/clearable.
-  const repos = [
-    ...new Set(
-      [
-        ...(integration?.connection?.repositories ?? []),
-        ...(project.githubRepo ? [project.githubRepo] : []),
-      ].sort()
-    ),
-  ];
+  // Live repo list from GitHub, fetched lazily when the picker opens.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [available, setAvailable] = useState<RepoMeta[] | null>(null);
+  const [repoError, setRepoError] = useState<string | null>(null);
+  const [loadingRepos, setLoadingRepos] = useState(false);
+
+  const connectedRepos =
+    project.githubRepos ?? (project.githubRepo ? [project.githubRepo] : []);
+  const repoMeta = new Map((available ?? []).map((r) => [r.fullName, r]));
+
+  const onPickerOpenChange = (open: boolean) => {
+    setPickerOpen(open);
+    if (open && available === null && !loadingRepos) {
+      setLoadingRepos(true);
+      setRepoError(null);
+      listRepositories()
+        .then(setAvailable)
+        .catch((error: unknown) => {
+          setRepoError(
+            error instanceof Error
+              ? error.message
+              : "Failed to load repositories"
+          );
+        })
+        .finally(() => setLoadingRepos(false));
+    }
+  };
+
+  const toggleRepo = (fullName: string) => {
+    const next = connectedRepos.includes(fullName)
+      ? connectedRepos.filter((repo) => repo !== fullName)
+      : [...connectedRepos, fullName];
+    update({ githubRepos: next });
+  };
 
   const update = (patch: ProjectPatch) => {
     updateProject({ projectId: project._id, ...patch }).catch(
@@ -184,60 +223,131 @@ export function ProjectProperties({ project }: { project: Doc<"projects"> }) {
         </div>
       </PropertyRow>
 
-      <PropertyRow label="GitHub repo">
-        {repos.length > 0 ? (
-          <Select
-            value={project.githubRepo ?? NO_REPO}
-            onValueChange={(value) =>
-              update({ githubRepo: value === NO_REPO ? null : value })
-            }
-          >
-            <SelectTrigger
-              size="sm"
-              className="w-36 gap-1.5 border-none font-mono text-xs shadow-none"
-            >
-              <SelectValue placeholder="No repo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_REPO}>
-                <span className="text-muted-foreground">No repo</span>
-              </SelectItem>
-              {repos.map((repo) => (
-                <SelectItem key={repo} value={repo} className="font-mono text-xs">
-                  {repo}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <Separator className="my-1" />
+
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">
+            GitHub repositories
+          </span>
+          {integration?.connection && (
+            <Popover open={pickerOpen} onOpenChange={onPickerOpenChange}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-5"
+                  aria-label="Connect repositories"
+                >
+                  <Plus className="size-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-72 p-1.5">
+                {loadingRepos ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : repoError ? (
+                  <p className="p-2 text-xs text-muted-foreground">
+                    {repoError}
+                  </p>
+                ) : (available ?? []).length === 0 ? (
+                  <p className="p-2 text-xs text-muted-foreground">
+                    No repositories granted to the GitHub App. Manage access
+                    from your GitHub installation settings.
+                  </p>
+                ) : (
+                  <div className="flex max-h-64 flex-col gap-0.5 overflow-y-auto">
+                    {available?.map((repo) => (
+                      <label
+                        key={repo.fullName}
+                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent"
+                      >
+                        <Checkbox
+                          checked={connectedRepos.includes(repo.fullName)}
+                          onCheckedChange={() => toggleRepo(repo.fullName)}
+                        />
+                        <span className="min-w-0 flex-1 truncate">
+                          <span className="text-muted-foreground">
+                            {repo.owner}/
+                          </span>
+                          <span className="font-medium">{repo.name}</span>
+                        </span>
+                        <span className="shrink-0 text-[10px] text-muted-foreground">
+                          {repo.private ? "Private" : "Public"}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+
+        {connectedRepos.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            {integration === undefined ? (
+              "…"
+            ) : integration.connection ? (
+              "No repositories connected."
+            ) : (
+              <>
+                Connect GitHub in{" "}
+                <Link
+                  href={`/${params.orgSlug}/settings/integrations`}
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  Settings → Integrations
+                </Link>{" "}
+                first.
+              </>
+            )}
+          </p>
         ) : (
-          <input
-            type="text"
-            key={project.githubRepo ?? ""}
-            defaultValue={project.githubRepo ?? ""}
-            placeholder="owner/repo"
-            onBlur={(e) => {
-              const value = e.target.value.trim();
-              if (value !== (project.githubRepo ?? "")) {
-                update({ githubRepo: value || null });
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.currentTarget.blur();
-              }
-            }}
-            aria-label="GitHub repo"
-            className="h-8 w-36 rounded-md px-2 text-right font-mono text-xs text-foreground outline-none transition-colors placeholder:font-sans placeholder:text-muted-foreground hover:bg-accent focus:bg-accent"
-          />
+          <div className="flex flex-col gap-1.5">
+            {connectedRepos.map((repo) => {
+              const meta = repoMeta.get(repo);
+              const [owner, name] = repo.split("/");
+              return (
+                <div
+                  key={repo}
+                  className="group flex items-center gap-2 rounded-md border bg-card/50 px-2.5 py-1.5"
+                >
+                  <GithubIcon className="size-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <p className="truncate text-xs font-medium">{name}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {owner}
+                    </p>
+                  </div>
+                  {meta && (
+                    <span className="shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      {meta.private ? "Private" : "Public"}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => toggleRepo(repo)}
+                    aria-label={`Disconnect ${repo}`}
+                    className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         )}
-      </PropertyRow>
-      {project.githubRepo && project.githubRepoConnectedBy && (
-        <p className="-mt-2 text-right text-[11px] text-muted-foreground">
-          Connected by{" "}
-          {members?.find((m) => m.userId === project.githubRepoConnectedBy)
-            ?.name ?? "a former member"}
-        </p>
-      )}
+
+        {connectedRepos.length > 0 && project.githubRepoConnectedBy && (
+          <p className="text-[11px] text-muted-foreground">
+            Connected by{" "}
+            {members?.find((m) => m.userId === project.githubRepoConnectedBy)
+              ?.name ?? "a former member"}
+          </p>
+        )}
+      </div>
 
       <Separator className="my-1" />
 

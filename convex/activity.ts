@@ -12,7 +12,9 @@ const activityEntryValidator = v.object({
   _id: v.id("activity"),
   _creationTime: v.number(),
   issueId: v.id("issues"),
-  actorId: v.id("users"),
+  actorId: v.optional(v.id("users")),
+  /** Set for automated events; the UI shows the integration's logo. */
+  systemActor: v.optional(v.literal("github")),
   type: v.string(),
   field: v.optional(v.string()),
   oldValue: v.optional(v.string()),
@@ -61,17 +63,21 @@ export const listByIssue = orgQuery({
 
     const result = [];
     for (const entry of entries) {
-      const actor = await getUser(entry.actorId);
+      const actor = entry.actorId ? await getUser(entry.actorId) : null;
       result.push({
         _id: entry._id,
         _creationTime: entry._creationTime,
         issueId: entry.issueId,
         actorId: entry.actorId,
+        systemActor: entry.systemActor,
         type: entry.type,
         field: entry.field,
         oldValue: await resolveValue(entry.field, entry.oldValue),
         newValue: await resolveValue(entry.field, entry.newValue),
-        actorName: actor?.name ?? "Unknown user",
+        actorName:
+          entry.systemActor === "github"
+            ? "GitHub"
+            : (actor?.name ?? "Unknown user"),
         actorImageUrl: actor?.imageUrl,
       });
     }

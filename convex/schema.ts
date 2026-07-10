@@ -219,11 +219,27 @@ export default defineSchema({
     .index("by_issue", ["issueId"])
     .index("by_org_repo_number", ["orgId", "repo", "number"]),
 
+  /** Cohere issue ↔ GitHub issue sync links (created by the sync layer). */
+  githubIssues: defineTable({
+    orgId: v.id("organizations"),
+    issueId: v.id("issues"),
+    /** "owner/name" */
+    repo: v.string(),
+    /** GitHub issue number */
+    number: v.number(),
+    url: v.string(),
+  })
+    .index("by_issue", ["issueId"])
+    .index("by_org_repo_number", ["orgId", "repo", "number"]),
+
   notifications: defineTable({
     orgId: v.id("organizations"),
     /** Recipient */
     userId: v.id("users"),
-    actorId: v.id("users"),
+    /** Absent for automated events — see systemActor */
+    actorId: v.optional(v.id("users")),
+    /** Automated actor (e.g. the GitHub integration) */
+    systemActor: v.optional(v.literal("github")),
     issueId: v.id("issues"),
     type: notificationTypeValidator,
     /** New status value, for status_changed */
@@ -238,7 +254,10 @@ export default defineSchema({
   activity: defineTable({
     orgId: v.id("organizations"),
     issueId: v.id("issues"),
-    actorId: v.id("users"),
+    /** Absent for automated events — see systemActor */
+    actorId: v.optional(v.id("users")),
+    /** Automated actor (e.g. the GitHub integration) */
+    systemActor: v.optional(v.literal("github")),
     /** e.g. "created" | "status_changed" | "assigned" | "labeled" | "commented" */
     type: v.string(),
     field: v.optional(v.string()),
@@ -257,9 +276,11 @@ export default defineSchema({
     /** Target date as ms since epoch */
     targetDate: v.optional(v.number()),
     color: v.optional(v.string()),
-    /** Connected GitHub repo, "owner/name" */
+    /** Legacy single repo — superseded by githubRepos */
     githubRepo: v.optional(v.string()),
-    /** Who connected the repo */
+    /** Connected GitHub repos, "owner/name" */
+    githubRepos: v.optional(v.array(v.string())),
+    /** Who last changed the connected repos */
     githubRepoConnectedBy: v.optional(v.id("users")),
   }).index("by_org", ["orgId"]),
 

@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { MutationCtx, QueryCtx } from "./_generated/server";
 import { logActivity } from "./lib/activity";
@@ -185,6 +186,8 @@ export const create = orgMutation({
     estimate: v.optional(v.number()),
     dueDate: v.optional(v.number()),
     labelIds: v.optional(v.array(v.id("labels"))),
+    /** Also create this issue in a connected GitHub repo ("owner/name"). */
+    githubRepo: v.optional(v.string()),
   },
   returns: v.id("issues"),
   handler: async (ctx, args) => {
@@ -192,12 +195,46 @@ export const create = orgMutation({
     if (!team || team.orgId !== ctx.org._id) {
       throw new Error("Team not found");
     }
-    return await insertIssue(ctx, {
-      ...args,
+
+    // Validate the GitHub sync request up front so a bad repo never
+    // half-creates state; the actual API call runs async after commit.
+    if (args.githubRepo) {
+      if (!args.projectId) {
+        throw new Error("Pick a project to create the issue on GitHub");
+      }
+      const project = await ctx.db.get(args.projectId);
+      if (!project || project.orgId !== ctx.org._id) {
+        throw new Error("Project not found");
+      }
+      if (!(project.githubRepos ?? []).includes(args.githubRepo)) {
+        throw new Error(
+          "That repository isn't connected to the selected project"
+        );
+      }
+      const integration = await ctx.db
+        .query("integrations")
+        .withIndex("by_org", (q) => q.eq("orgId", ctx.org._id))
+        .unique();
+      if (!integration?.enabled || integration.installationId === undefined) {
+        throw new Error("GitHub is not connected for this workspace");
+      }
+    }
+
+    const { githubRepo, ...issueArgs } = args;
+    const issueId = await insertIssue(ctx, {
+      ...issueArgs,
       org: ctx.org,
       team,
       creatorId: ctx.user._id,
     });
+
+    if (githubRepo) {
+      await ctx.scheduler.runAfter(0, internal.github.client.pushIssue, {
+        issueId,
+        repo: githubRepo,
+      });
+    }
+    return issueId;
   },
 });
 

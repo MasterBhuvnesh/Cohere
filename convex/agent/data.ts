@@ -768,6 +768,9 @@ export const standupForOrg = internalQuery({
     const completedBy = new Map<Id<"users">, Set<Id<"issues">>>();
     const createdBy = new Map<Id<"users">, Set<Id<"issues">>>();
     for (const entry of recentActivity) {
+      if (!entry.actorId) {
+        continue; // automated events (GitHub) don't count toward member stats
+      }
       if (entry.type === "created") {
         const set = createdBy.get(entry.actorId) ?? new Set();
         set.add(entry.issueId);

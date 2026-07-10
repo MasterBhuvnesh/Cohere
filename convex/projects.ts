@@ -17,7 +17,9 @@ export const projectShape = {
   leadId: v.optional(v.id("users")),
   targetDate: v.optional(v.number()),
   color: v.optional(v.string()),
+  /** Legacy single repo — superseded by githubRepos */
   githubRepo: v.optional(v.string()),
+  githubRepos: v.optional(v.array(v.string())),
   githubRepoConnectedBy: v.optional(v.id("users")),
 };
 
@@ -200,7 +202,7 @@ export const update = orgMutation({
     leadId: v.optional(v.union(v.id("users"), v.null())),
     targetDate: v.optional(v.union(v.number(), v.null())),
     color: v.optional(v.union(v.string(), v.null())),
-    githubRepo: v.optional(v.union(v.string(), v.null())),
+    githubRepos: v.optional(v.array(v.string())),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -242,18 +244,19 @@ export const update = orgMutation({
     if (args.color !== undefined) {
       updates.color = args.color ?? undefined;
     }
-    if (args.githubRepo !== undefined) {
-      const repo = args.githubRepo?.trim();
-      if (repo) {
+    if (args.githubRepos !== undefined) {
+      const repos = [...new Set(args.githubRepos.map((r) => r.trim()))].filter(
+        Boolean
+      );
+      for (const repo of repos) {
         if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) {
-          throw new Error("Repo must look like owner/name");
+          throw new Error(`"${repo}" must look like owner/name`);
         }
-        updates.githubRepo = repo;
-        updates.githubRepoConnectedBy = ctx.user._id;
-      } else {
-        updates.githubRepo = undefined;
-        updates.githubRepoConnectedBy = undefined;
       }
+      updates.githubRepos = repos.length > 0 ? repos.sort() : undefined;
+      updates.githubRepoConnectedBy =
+        repos.length > 0 ? ctx.user._id : undefined;
+      updates.githubRepo = undefined; // retire the legacy single-repo field
     }
 
     await ctx.db.patch(project._id, updates);

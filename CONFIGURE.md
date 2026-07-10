@@ -44,6 +44,11 @@ Generate a webhook secret:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
+For GitHub **Issues** sync (creating issues in repos from Cohere), also add
+under Repository permissions: **Issues: Read and write**. Then, on the app
+page after creation, note the **App ID** and generate a **private key**
+("Private keys" → Generate) — a `.pem` file downloads.
+
 ## 2. Set Convex environment variables
 
 The app slug is in the app page URL: `github.com/settings/apps/<slug>`.
@@ -51,9 +56,17 @@ The app slug is in the app page URL: `github.com/settings/apps/<slug>`.
 ```bash
 npx convex env set GITHUB_APP_SLUG <slug>
 npx convex env set GITHUB_WEBHOOK_SECRET <webhook secret from step 1>
+# For GitHub Issues sync (issue creation from Cohere):
+npx convex env set GITHUB_APP_ID <numeric app id>
 # Production only — where /github-setup redirects users after install.
 # Defaults to http://localhost:3000 when unset.
 npx convex env set SITE_URL https://your-app.example.com
+```
+
+The private key is multiline, so set it from the file (PowerShell):
+
+```powershell
+npx convex env set GITHUB_PRIVATE_KEY (Get-Content path\to\key.pem -Raw)
 ```
 
 ## 3. Connect a workspace
@@ -87,5 +100,16 @@ App's installation settings — the list re-syncs automatically.
 - The enable/disable switch in Settings → Integrations pauses event
   processing without disconnecting; Disconnect removes the binding but
   keeps already-linked PRs on their issues.
-- Optionally, link a repository to a project from the project's Properties
-  panel — the dropdown lists the granted repos and shows who connected it.
+- **Projects ↔ repositories**: a project's Properties panel lists connected
+  repositories (owner, name, Public/Private) and a picker fetched live from
+  the installation. Connection is optional.
+- **Issue sync**: when a new issue's project has connected repositories,
+  the create dialog offers "Also create this issue on GitHub" with a repo
+  choice. The issue is always created in Cohere first; a scheduled action
+  then creates the GitHub twin (via an app JWT → installation token) and
+  records the link, which appears in the issue's GitHub panel and activity
+  timeline.
+- **System actor**: all automated events (issue sync, PR-driven status
+  changes) appear in timelines and the inbox as **GitHub** with the GitHub
+  logo — never as a workspace user. Failures are recorded on the timeline
+  too ("couldn't sync this issue to GitHub").
