@@ -11,6 +11,7 @@
 import type * as activity from "../activity.js";
 import type * as agent_chat from "../agent/chat.js";
 import type * as agent_data from "../agent/data.js";
+import type * as agent_draft from "../agent/draft.js";
 import type * as agent_embeddings from "../agent/embeddings.js";
 import type * as agent_limiter from "../agent/limiter.js";
 import type * as agent_models from "../agent/models.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   activity: typeof activity;
   "agent/chat": typeof agent_chat;
   "agent/data": typeof agent_data;
+  "agent/draft": typeof agent_draft;
   "agent/embeddings": typeof agent_embeddings;
   "agent/limiter": typeof agent_limiter;
   "agent/models": typeof agent_models;

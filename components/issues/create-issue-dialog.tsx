@@ -1,7 +1,15 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
-import { FolderKanban, LayoutTemplate } from "lucide-react";
+import { useAction, useMutation, useQuery } from "convex/react";
+import {
+  CornerDownRight,
+  FolderKanban,
+  LayoutTemplate,
+  Link2,
+  Loader2,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -35,6 +43,22 @@ import { PriorityIcon } from "@/components/shared/priority-icon";
 import { StatusIcon } from "@/components/shared/status-icon";
 
 const NO_PROJECT = "no-project";
+const NO_ESTIMATE = "no-estimate";
+
+const RELATION_LABELS: Record<string, string> = {
+  blocks: "blocks",
+  blocked_by: "blocked by",
+  related: "related to",
+  duplicate_of: "duplicate of",
+};
+
+type DraftRelation = {
+  issueId: Id<"issues">;
+  identifier: string;
+  title: string;
+  type: "blocks" | "blocked_by" | "related" | "duplicate_of";
+  reason: string;
+};
 
 export function CreateIssueDialog({
   open,
@@ -50,7 +74,9 @@ export function CreateIssueDialog({
   const teams = useQuery(api.teams.list, open ? {} : "skip");
   const templates = useQuery(api.issueTemplates.list, open ? {} : "skip");
   const projects = useQuery(api.projects.list, open ? {} : "skip");
+  const orgLabels = useQuery(api.labels.list, open ? {} : "skip");
   const createIssue = useMutation(api.issues.create);
+  const draftIssue = useAction(api.agent.draft.draftIssue);
 
   const [selectedTeamId, setSelectedTeamId] = useState<
     Id<"teams"> | undefined
@@ -66,6 +92,10 @@ export function CreateIssueDialog({
   const [projectId, setProjectId] = useState<Id<"projects"> | null>(null);
   const [syncToGithub, setSyncToGithub] = useState(false);
   const [githubRepo, setGithubRepo] = useState<string | null>(null);
+  const [estimate, setEstimate] = useState<number | null>(null);
+  const [subIssues, setSubIssues] = useState<string[]>([]);
+  const [relations, setRelations] = useState<DraftRelation[]>([]);
+  const [drafting, setDrafting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Fall back to the default/first team without needing an effect.
@@ -101,6 +131,36 @@ export function CreateIssueDialog({
     setProjectId(null);
     setSyncToGithub(false);
     setGithubRepo(null);
+    setEstimate(null);
+    setSubIssues([]);
+    setRelations([]);
+  };
+
+  const draftWithAi = async () => {
+    if (!teamId || !title.trim() || drafting) {
+      return;
+    }
+    setDrafting(true);
+    try {
+      const draft = await draftIssue({ idea: title.trim(), teamId });
+      if (!draft.ok) {
+        toast.error(draft.error);
+        return;
+      }
+      setTitle(draft.title);
+      setDescription(draft.description);
+      setPriority(draft.priority);
+      setEstimate(draft.estimate);
+      setLabelIds(draft.labels.map((label) => label.labelId));
+      setSubIssues(draft.subIssues);
+      setRelations(draft.relations);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not draft the issue"
+      );
+    } finally {
+      setDrafting(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -119,12 +179,22 @@ export function CreateIssueDialog({
         description: description.trim() || undefined,
         status,
         priority,
+        estimate: estimate ?? undefined,
         labelIds: labelIds.length > 0 ? labelIds : undefined,
         projectId: projectId ?? undefined,
         githubRepo: syncRepo ?? undefined,
+        subIssues: subIssues.length > 0 ? subIssues : undefined,
+        relations:
+          relations.length > 0
+            ? relations.map((r) => ({ issueId: r.issueId, type: r.type }))
+            : undefined,
       });
       toast.success(
-        syncRepo ? "Issue created — syncing to GitHub" : "Issue created"
+        subIssues.length > 0
+          ? `Issue created with ${subIssues.length} sub-issue${subIssues.length === 1 ? "" : "s"}`
+          : syncRepo
+            ? "Issue created — syncing to GitHub"
+            : "Issue created"
       );
       onOpenChange(false);
       resetForm();
@@ -244,6 +314,26 @@ export function CreateIssueDialog({
               </SelectContent>
             </Select>
             <Select
+              value={estimate !== null ? String(estimate) : NO_ESTIMATE}
+              onValueChange={(value) =>
+                setEstimate(value === NO_ESTIMATE ? null : Number(value))
+              }
+            >
+              <SelectTrigger size="sm" className="w-auto gap-1.5">
+                <SelectValue placeholder="Estimate" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_ESTIMATE}>
+                  <span className="text-muted-foreground">No estimate</span>
+                </SelectItem>
+                {[1, 2, 3, 5, 8, 13].map((points) => (
+                  <SelectItem key={points} value={String(points)}>
+                    {points} {points === 1 ? "point" : "points"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
               value={projectId ?? NO_PROJECT}
               onValueChange={(value) => {
                 setProjectId(
@@ -315,18 +405,135 @@ export function CreateIssueDialog({
               )}
             </div>
           )}
+          {labelIds.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {labelIds.map((labelId) => {
+                const label = orgLabels?.find((l) => l._id === labelId);
+                if (!label) {
+                  return null;
+                }
+                return (
+                  <span
+                    key={labelId}
+                    className="flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs"
+                  >
+                    <span
+                      className="size-2 rounded-full"
+                      style={{ backgroundColor: label.color }}
+                    />
+                    {label.name}
+                    <button
+                      type="button"
+                      aria-label={`Remove label ${label.name}`}
+                      onClick={() =>
+                        setLabelIds((ids) => ids.filter((id) => id !== labelId))
+                      }
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          {subIssues.length > 0 && (
+            <div className="flex flex-col gap-1 rounded-md border bg-muted/30 px-2.5 py-2">
+              <span className="text-xs font-medium text-muted-foreground">
+                Sub-issues
+              </span>
+              {subIssues.map((subIssue, index) => (
+                <div
+                  key={`${subIssue}-${index}`}
+                  className="group flex items-center gap-2 text-xs"
+                >
+                  <CornerDownRight className="size-3 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate">{subIssue}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove sub-issue ${subIssue}`}
+                    onClick={() =>
+                      setSubIssues((items) =>
+                        items.filter((_, i) => i !== index)
+                      )
+                    }
+                    className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {relations.length > 0 && (
+            <div className="flex flex-col gap-1 rounded-md border bg-muted/30 px-2.5 py-2">
+              <span className="text-xs font-medium text-muted-foreground">
+                Relations
+              </span>
+              {relations.map((relation) => (
+                <div
+                  key={relation.issueId}
+                  className="group flex items-center gap-2 text-xs"
+                  title={relation.reason}
+                >
+                  <Link2 className="size-3 shrink-0 text-muted-foreground" />
+                  <span className="shrink-0 text-muted-foreground">
+                    {RELATION_LABELS[relation.type]}
+                  </span>
+                  <span className="shrink-0 font-mono text-muted-foreground">
+                    {relation.identifier}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {relation.title}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Remove relation to ${relation.identifier}`}
+                    onClick={() =>
+                      setRelations((items) =>
+                        items.filter((r) => r.issueId !== relation.issueId)
+                      )
+                    }
+                    className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+        <div className="flex items-center justify-between gap-2">
           <Button
+            variant="outline"
             size="sm"
-            disabled={!title.trim() || !teamId || submitting}
-            onClick={() => void handleSubmit()}
+            disabled={!title.trim() || !teamId || drafting || submitting}
+            onClick={() => void draftWithAi()}
+            title="Expand the title into a specced issue with acceptance criteria, labels, sub-issues and relations"
           >
-            Create issue
+            {drafting ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="size-3.5" />
+            )}
+            {drafting ? "Drafting…" : "Draft with AI"}
           </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={!title.trim() || !teamId || submitting}
+              onClick={() => void handleSubmit()}
+            >
+              Create issue
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

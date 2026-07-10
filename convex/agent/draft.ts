@@ -1,0 +1,312 @@
+import { Output, generateText, jsonSchema } from "ai";
+import { v } from "convex/values";
+import { internal } from "../_generated/api";
+import { Id } from "../_generated/dataModel";
+import { action, internalQuery } from "../_generated/server";
+import {
+  issuePriorityValidator,
+  issueRelationTypeValidator,
+} from "../schema";
+import {
+  AI_NOT_CONFIGURED_MESSAGE,
+  chatModel,
+  isAiConfigured,
+} from "./models";
+
+/**
+ * AI issue drafting: expand a one-line idea into a fully specced issue —
+ * description with acceptance criteria, priority, estimate, labels,
+ * sub-issues, and suggested relations to existing team issues. The draft is
+ * returned to the create-issue dialog for review; nothing is written until
+ * the user submits.
+ */
+
+const PRIORITIES = ["none", "urgent", "high", "medium", "low"] as const;
+const RELATION_TYPES = [
+  "blocks",
+  "blocked_by",
+  "related",
+  "duplicate_of",
+] as const;
+const ESTIMATES = [1, 2, 3, 5, 8, 13];
+
+const failure = v.object({ ok: v.literal(false), error: v.string() });
+
+/** Labels + recent issues the model may reference, never invented ids. */
+export const draftContext = internalQuery({
+  args: { orgId: v.id("organizations"), teamId: v.id("teams") },
+  returns: v.object({
+    teamName: v.string(),
+    orgLabels: v.array(
+      v.object({
+        labelId: v.id("labels"),
+        name: v.string(),
+        color: v.string(),
+      })
+    ),
+    recentIssues: v.array(
+      v.object({
+        issueId: v.id("issues"),
+        identifier: v.string(),
+        title: v.string(),
+      })
+    ),
+  }),
+  handler: async (ctx, args) => {
+    const team = await ctx.db.get(args.teamId);
+    if (!team || team.orgId !== args.orgId) {
+      throw new Error("Team not found");
+    }
+    const orgLabels = await ctx.db
+      .query("labels")
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .collect();
+    const recent = await ctx.db
+      .query("issues")
+      .withIndex("by_team", (q) => q.eq("teamId", args.teamId))
+      .order("desc")
+      .take(80);
+    return {
+      teamName: team.name,
+      orgLabels: orgLabels.map((label) => ({
+        labelId: label._id,
+        name: label.name,
+        color: label.color,
+      })),
+      recentIssues: recent.map((issue) => ({
+        issueId: issue._id,
+        identifier: `${team.key}-${issue.number}`,
+        title: issue.title,
+      })),
+    };
+  },
+});
+
+type DraftOutput = {
+  title: string;
+  description: string;
+  priority: (typeof PRIORITIES)[number];
+  estimate: number | null;
+  labelNames: string[];
+  subIssues: string[];
+  relations: {
+    identifier: string;
+    type: (typeof RELATION_TYPES)[number];
+    reason: string;
+  }[];
+};
+
+type DraftResult =
+  | { ok: false; error: string }
+  | {
+      ok: true;
+      title: string;
+      description: string;
+      priority: (typeof PRIORITIES)[number];
+      estimate: number | null;
+      labels: { labelId: Id<"labels">; name: string; color: string }[];
+      subIssues: string[];
+      relations: {
+        issueId: Id<"issues">;
+        identifier: string;
+        title: string;
+        type: (typeof RELATION_TYPES)[number];
+        reason: string;
+      }[];
+    };
+
+export const draftIssue = action({
+  args: { idea: v.string(), teamId: v.id("teams") },
+  returns: v.union(
+    failure,
+    v.object({
+      ok: v.literal(true),
+      title: v.string(),
+      description: v.string(),
+      priority: issuePriorityValidator,
+      estimate: v.union(v.number(), v.null()),
+      labels: v.array(
+        v.object({
+          labelId: v.id("labels"),
+          name: v.string(),
+          color: v.string(),
+        })
+      ),
+      subIssues: v.array(v.string()),
+      relations: v.array(
+        v.object({
+          issueId: v.id("issues"),
+          identifier: v.string(),
+          title: v.string(),
+          type: issueRelationTypeValidator,
+          reason: v.string(),
+        })
+      ),
+    })
+  ),
+  handler: async (ctx, args): Promise<DraftResult> => {
+    const idea = args.idea.trim();
+    if (!idea) {
+      return { ok: false as const, error: "Describe the idea first." };
+    }
+    const auth = await ctx.runQuery(internal.agent.data.authorizeAi, {});
+    const context = await ctx.runQuery(internal.agent.draft.draftContext, {
+      orgId: auth.orgId,
+      teamId: args.teamId,
+    });
+    if (!isAiConfigured()) {
+      return { ok: false as const, error: AI_NOT_CONFIGURED_MESSAGE };
+    }
+
+    try {
+      const { output } = await generateText({
+        model: chatModel,
+        output: Output.object({
+          schema: jsonSchema<DraftOutput>({
+            type: "object",
+            properties: {
+              title: {
+                type: "string",
+                description: "Concise, action-oriented issue title",
+              },
+              description: {
+                type: "string",
+                description:
+                  "Markdown body: short context paragraph, then '### Acceptance criteria' with 3-6 '- [ ]' checklist items. Under 250 words.",
+              },
+              priority: { type: "string", enum: [...PRIORITIES] },
+              estimate: {
+                type: ["number", "null"],
+                description:
+                  "Story points from 1, 2, 3, 5, 8, 13 — null if unclear",
+              },
+              labelNames: {
+                type: "array",
+                items: { type: "string" },
+                description:
+                  "Labels chosen ONLY from the provided workspace labels (empty if none fit)",
+              },
+              subIssues: {
+                type: "array",
+                items: { type: "string" },
+                description:
+                  "0-6 short sub-issue titles breaking down the work; empty if the issue is atomic",
+              },
+              relations: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    identifier: {
+                      type: "string",
+                      description:
+                        "Identifier of an EXISTING issue from the provided list, e.g. ENG-42",
+                    },
+                    type: { type: "string", enum: [...RELATION_TYPES] },
+                    reason: {
+                      type: "string",
+                      description: "One short sentence why",
+                    },
+                  },
+                  required: ["identifier", "type", "reason"],
+                  additionalProperties: false,
+                },
+                description:
+                  "Up to 3 relations to existing issues; empty if none clearly apply",
+              },
+            },
+            required: [
+              "title",
+              "description",
+              "priority",
+              "estimate",
+              "labelNames",
+              "subIssues",
+              "relations",
+            ],
+            additionalProperties: false,
+          }),
+        }),
+        prompt: [
+          `You draft fully specced issues for the team "${context.teamName}" in a software project tracker.`,
+          `One-line idea from the user: ${idea}`,
+          context.orgLabels.length > 0
+            ? `Workspace labels you may choose from: ${context.orgLabels.map((l) => l.name).join(", ")}`
+            : "This workspace has no labels yet, so suggest none.",
+          context.recentIssues.length > 0
+            ? `Existing team issues (identifier: title) you may reference for relations:\n${context.recentIssues.map((i) => `${i.identifier}: ${i.title}`).join("\n")}`
+            : "There are no existing issues, so suggest no relations.",
+          "Expand the idea into a well-specified issue. Priorities: urgent = production-breaking, high = important and time-sensitive, medium = normal, low = nice-to-have, none = unclear.",
+        ].join("\n\n"),
+      });
+
+      const labelsByName = new Map(
+        context.orgLabels.map((label) => [label.name.toLowerCase(), label])
+      );
+      const labels = [
+        ...new Set(
+          output.labelNames
+            .map((name) => labelsByName.get(name.toLowerCase()))
+            .filter((label) => label !== undefined)
+        ),
+      ];
+
+      const issuesByIdentifier = new Map(
+        context.recentIssues.map((issue) => [
+          issue.identifier.toUpperCase(),
+          issue,
+        ])
+      );
+      const seenTargets = new Set<Id<"issues">>();
+      const relations = [];
+      for (const relation of output.relations ?? []) {
+        const target = issuesByIdentifier.get(
+          relation.identifier.toUpperCase()
+        );
+        if (
+          !target ||
+          seenTargets.has(target.issueId) ||
+          !RELATION_TYPES.includes(relation.type)
+        ) {
+          continue;
+        }
+        seenTargets.add(target.issueId);
+        relations.push({
+          issueId: target.issueId,
+          identifier: target.identifier,
+          title: target.title,
+          type: relation.type,
+          reason: relation.reason,
+        });
+        if (relations.length >= 3) {
+          break;
+        }
+      }
+
+      return {
+        ok: true as const,
+        title: output.title.trim() || idea,
+        description: output.description,
+        priority: PRIORITIES.includes(output.priority)
+          ? output.priority
+          : ("none" as const),
+        estimate:
+          output.estimate !== null && ESTIMATES.includes(output.estimate)
+            ? output.estimate
+            : null,
+        labels,
+        subIssues: (output.subIssues ?? [])
+          .map((title) => title.trim())
+          .filter(Boolean)
+          .slice(0, 6),
+        relations,
+      };
+    } catch (error) {
+      console.error("Issue drafting failed", error);
+      return {
+        ok: false as const,
+        error: "Could not draft the issue. Please try again.",
+      };
+    }
+  },
+});

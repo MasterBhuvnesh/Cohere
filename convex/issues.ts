@@ -7,7 +7,11 @@ import { logActivity } from "./lib/activity";
 import { orgMutation, orgQuery } from "./lib/customFunctions";
 import { assertCanCreateIssue } from "./lib/limits";
 import { createNotification } from "./notifications";
-import { issuePriorityValidator, issueStatusValidator } from "./schema";
+import {
+  issuePriorityValidator,
+  issueRelationTypeValidator,
+  issueStatusValidator,
+} from "./schema";
 
 export const issueShape = {
   _id: v.id("issues"),
@@ -189,6 +193,17 @@ export const create = orgMutation({
     labelIds: v.optional(v.array(v.id("labels"))),
     /** Also create this issue in a connected GitHub repo ("owner/name"). */
     githubRepo: v.optional(v.string()),
+    /** Sub-issue titles to create under the new issue (AI drafting). */
+    subIssues: v.optional(v.array(v.string())),
+    /** Relations to existing issues to create alongside (AI drafting). */
+    relations: v.optional(
+      v.array(
+        v.object({
+          issueId: v.id("issues"),
+          type: issueRelationTypeValidator,
+        })
+      )
+    ),
   },
   returns: v.id("issues"),
   handler: async (ctx, args) => {
@@ -221,13 +236,72 @@ export const create = orgMutation({
       }
     }
 
-    const { githubRepo, ...issueArgs } = args;
+    const { githubRepo, subIssues, relations, ...issueArgs } = args;
     const issueId = await insertIssue(ctx, {
       ...issueArgs,
       org: ctx.org,
       team,
       creatorId: ctx.user._id,
     });
+
+    for (const title of subIssues ?? []) {
+      if (!title.trim()) {
+        continue;
+      }
+      await insertIssue(ctx, {
+        org: ctx.org,
+        team,
+        creatorId: ctx.user._id,
+        title,
+        parentIssueId: issueId,
+        projectId: args.projectId,
+        cycleId: args.cycleId,
+      });
+    }
+
+    // Relations from drafting. The issue is brand new, so no existing-link
+    // dedupe is needed — just normalize blocked_by like issueRelations.create.
+    const identifier = `${team.key}-${(await ctx.db.get(issueId))!.number}`;
+    const linked = new Set<Id<"issues">>([issueId]);
+    for (const relation of relations ?? []) {
+      if (linked.has(relation.issueId)) {
+        continue;
+      }
+      linked.add(relation.issueId);
+      const related = await getOrgIssue(ctx, ctx.org._id, relation.issueId);
+      const relatedTeam = await ctx.db.get(related.teamId);
+      const relatedIdentifier = `${relatedTeam?.key ?? "?"}-${related.number}`;
+
+      const inverted = relation.type === "blocked_by";
+      await ctx.db.insert("issueRelations", {
+        issueId: inverted ? related._id : issueId,
+        relatedIssueId: inverted ? issueId : related._id,
+        type: inverted ? "blocks" : relation.type,
+      });
+      await logActivity(ctx, {
+        orgId: ctx.org._id,
+        issueId,
+        actorId: ctx.user._id,
+        type: "relation_added",
+        field: relation.type,
+        oldValue: undefined,
+        newValue: relatedIdentifier,
+      });
+      const inverse: Record<string, string> = {
+        blocks: "blocked_by",
+        blocked_by: "blocks",
+        related: "related",
+        duplicate_of: "duplicated_by",
+      };
+      await logActivity(ctx, {
+        orgId: ctx.org._id,
+        issueId: related._id,
+        actorId: ctx.user._id,
+        type: "relation_added",
+        field: inverse[relation.type],
+        newValue: identifier,
+      });
+    }
 
     if (githubRepo) {
       await ctx.scheduler.runAfter(0, internal.github.client.pushIssue, {

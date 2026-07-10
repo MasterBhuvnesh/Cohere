@@ -9,7 +9,7 @@
 
 ### AI IMPROVEMENTS
 
-- [ ] AI issue drafting: turn a one-line idea into a fully specced issue with acceptance criteria
+- [x] AI issue drafting: turn a one-line idea into a fully specced issue with acceptance criteria
 - [ ] Backlog grooming agent: suggest stale issues to close and duplicates to merge
 - [ ] Voice standup: speech-to-text standup notes summarized into a cycle report
 - [x] GitHub integration: link PRs to issues and update statuses on merge
@@ -17,7 +17,7 @@
 ### INFRASTRUCTURE AND SCALING
 
 - [ ] Pagination: cursor-based pagination for orgs with tens of thousands of issues
-- [ ] Public issue sharing: read-only public links for individual issues
+- [ ] Public issue sharing: read-only public links for individual issues,like preview card on sharing link and export as pdf 
 - [ ] Import/export: bring in issues from CSV, Jira, or Linear export format
 
 ### MONETIZATION
