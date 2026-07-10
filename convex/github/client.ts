@@ -24,11 +24,15 @@ function base64url(input: Buffer | string): string {
 /** Short-lived JWT identifying the GitHub App (RS256, private key from env). */
 function appJwt(): string {
   const appId = process.env.GITHUB_APP_ID;
-  // Env vars often store PEMs with literal \n — restore real newlines.
-  const privateKey = process.env.GITHUB_PRIVATE_KEY?.replace(/\\n/g, "\n");
-  if (!appId || !privateKey) {
+  // The PEM survives env storage three ways: raw multiline, literal \n
+  // escapes, or base64 of the whole file (single line, shell-safe).
+  let privateKey = process.env.GITHUB_PRIVATE_KEY?.replace(/\\n/g, "\n") ?? "";
+  if (privateKey && !privateKey.includes("-----BEGIN")) {
+    privateKey = Buffer.from(privateKey, "base64").toString("utf8");
+  }
+  if (!appId || !privateKey.includes("-----BEGIN")) {
     throw new Error(
-      "GITHUB_APP_ID / GITHUB_PRIVATE_KEY are not set on the Convex deployment"
+      "GITHUB_APP_ID / GITHUB_PRIVATE_KEY are not set (or the key is not a valid PEM / base64 PEM) on the Convex deployment"
     );
   }
   const now = Math.floor(Date.now() / 1000);

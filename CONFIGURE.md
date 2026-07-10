@@ -63,11 +63,22 @@ npx convex env set GITHUB_APP_ID <numeric app id>
 npx convex env set SITE_URL https://your-app.example.com
 ```
 
-The private key is multiline, so set it from the file (PowerShell):
+The private key is multiline and shells tend to truncate multiline env
+values, so store it base64-encoded (the backend accepts raw PEM, \n-escaped
+PEM, or base64):
 
 ```powershell
-npx convex env set GITHUB_PRIVATE_KEY (Get-Content path\to\key.pem -Raw)
+# PowerShell
+npx convex env set GITHUB_PRIVATE_KEY ([Convert]::ToBase64String([IO.File]::ReadAllBytes("path\to\key.pem")))
 ```
+
+```bash
+# bash
+npx convex env set GITHUB_PRIVATE_KEY "$(base64 -w0 path/to/key.pem)"
+```
+
+Keep the `.pem` outside the repo — especially never in `public/`, which is
+served verbatim by Next.js.
 
 ## 3. Connect a workspace
 
