@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { Columns3, List, Loader2, Plus } from "lucide-react";
+import { Columns3, List, Loader2, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import {
   useParams,
@@ -9,10 +9,15 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCommands } from "@/components/commands/command-provider";
 import { BoardView } from "@/components/board/board-view";
@@ -29,6 +34,7 @@ import {
   toQueryString,
 } from "@/components/views/filters";
 import { ViewSwitcher } from "@/components/views/view-switcher";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 function CenteredSpinner() {
   return (
@@ -71,6 +77,22 @@ function TeamBoardContent() {
   );
   const display = displayFromSearchParams(searchParams);
 
+  // Same full-text search (title AND body) as the issues list, used here to
+  // narrow the visible cards by id on top of the client-side filters.
+  const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query.trim(), 250);
+  const searchResults = useQuery(
+    api.search.issues,
+    debouncedQuery ? { query: debouncedQuery, teamId } : "skip"
+  );
+  const searchedIds = useMemo(
+    () =>
+      debouncedQuery && searchResults
+        ? new Set<string>(searchResults.map((issue) => issue._id))
+        : null,
+    [debouncedQuery, searchResults]
+  );
+
   const applyState = (nextFilters: IssueFilters, nextDisplay: DisplayMode) => {
     const query = toQueryString(nextFilters, nextDisplay);
     router.replace(query ? `${pathname}?${query}` : pathname, {
@@ -106,10 +128,12 @@ function TeamBoardContent() {
 
   const filteredIssues = useMemo(
     () =>
-      (issues ?? []).filter((issue) =>
-        issueMatchesFilters(issue, filters, labelIdsByIssue)
+      (issues ?? []).filter(
+        (issue) =>
+          issueMatchesFilters(issue, filters, labelIdsByIssue) &&
+          (searchedIds === null || searchedIds.has(issue._id))
       ),
-    [issues, filters, labelIdsByIssue]
+    [issues, filters, labelIdsByIssue, searchedIds]
   );
 
   if (team === undefined || issues === undefined) {
@@ -170,13 +194,23 @@ function TeamBoardContent() {
         </div>
       </header>
 
-      <div className="flex h-10 shrink-0 items-center border-b px-3">
+      <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b px-3">
         <FilterBar
           filters={filters}
           onFiltersChange={(next) => applyState(next, display)}
           members={members ?? []}
           labels={orgLabels ?? []}
         />
+        <InputGroup className="h-7 w-56 shrink-0">
+          <InputGroupAddon>
+            <Search className="size-3.5" />
+          </InputGroupAddon>
+          <InputGroupInput
+            placeholder="Search title or description…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </InputGroup>
       </div>
 
       {display === "board" ? (
@@ -192,7 +226,7 @@ function TeamBoardContent() {
         <FilteredIssueList
           issues={filteredIssues}
           teamKey={team.key}
-          hasActiveFilters={countActiveFilters(filters) > 0}
+          hasActiveFilters={countActiveFilters(filters) > 0 || searchedIds !== null}
         />
       )}
     </>
