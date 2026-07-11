@@ -3,7 +3,6 @@
 ### ADVANCED FEATURES
 - [x] Search bar in issues to search the entire issue body, not just the title
 - [x] Inbox and notifications: in-app feed for mentions, assignments, and status changes
-- [ ] Roadmap view: timeline/Gantt visualization of projects and target dates
 - [x] Cycle analytics: burndown charts, velocity, and scope-change tracking
 - [x] Issue templates and recurring issues: standardize bug reports and rituals
 
