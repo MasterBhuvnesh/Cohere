@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
   CornerDownRight,
@@ -9,6 +10,7 @@ import {
   Loader2,
   Pencil,
   Sparkles,
+  Undo2,
   X,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -62,6 +64,29 @@ type DraftRelation = {
   reason: string;
 };
 
+type DraftEffort = "short" | "concise" | "detailed" | "thorough";
+
+const EFFORT_OPTIONS: { value: DraftEffort; label: string }[] = [
+  { value: "short", label: "Short" },
+  { value: "concise", label: "Concise" },
+  { value: "detailed", label: "Detailed" },
+  { value: "thorough", label: "Thorough" },
+];
+
+/** Everything an AI draft overwrites, snapshotted so Discard can restore. */
+type PreDraftSnapshot = {
+  title: string;
+  description: string;
+  priority: IssuePriority;
+  estimate: number | null;
+  labelIds: Id<"labels">[];
+  subIssues: string[];
+  keptSubIssues: Set<number>;
+  relations: DraftRelation[];
+  keptRelations: Set<string>;
+  descPreview: boolean;
+};
+
 export function CreateIssueDialog({
   open,
   onOpenChange,
@@ -101,7 +126,16 @@ export function CreateIssueDialog({
   const [keptRelations, setKeptRelations] = useState<Set<string>>(new Set());
   const [descPreview, setDescPreview] = useState(false);
   const [drafting, setDrafting] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [effort, setEffort] = useState<DraftEffort>("concise");
+  const [preDraft, setPreDraft] = useState<PreDraftSnapshot | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Drafting is a paid feature; the backend enforces this too (authorizeAi).
+  const { has } = useAuth();
+  const hasAi =
+    (has?.({ plan: "pro" }) ?? false) ||
+    (has?.({ plan: "enterprise" }) ?? false);
 
   // Fall back to the default/first team without needing an effect.
   const teamId = selectedTeamId ?? defaultTeamId ?? teams?.[0]?._id;
@@ -142,6 +176,9 @@ export function CreateIssueDialog({
     setRelations([]);
     setKeptRelations(new Set());
     setDescPreview(false);
+    setAiPrompt("");
+    setEffort("concise");
+    setPreDraft(null);
   };
 
   const draftWithAi = async () => {
@@ -149,15 +186,35 @@ export function CreateIssueDialog({
       return;
     }
     setDrafting(true);
+    const isRephrase = preDraft !== null;
     try {
       const draft = await draftIssue({
         idea: title.trim(),
         teamId,
         projectId: projectId ?? undefined,
+        instructions: aiPrompt.trim() || undefined,
+        effort,
+        previousDescription: isRephrase ? description : undefined,
       });
       if (!draft.ok) {
         toast.error(draft.error);
         return;
+      }
+      // Snapshot what the user had before the FIRST draft, so Discard can
+      // restore it (rephrasing keeps the original snapshot).
+      if (!isRephrase) {
+        setPreDraft({
+          title,
+          description,
+          priority,
+          estimate,
+          labelIds,
+          subIssues,
+          keptSubIssues,
+          relations,
+          keptRelations,
+          descPreview,
+        });
       }
       setTitle(draft.title);
       setDescription(draft.description);
@@ -176,6 +233,23 @@ export function CreateIssueDialog({
     } finally {
       setDrafting(false);
     }
+  };
+
+  const discardDraft = () => {
+    if (!preDraft) {
+      return;
+    }
+    setTitle(preDraft.title);
+    setDescription(preDraft.description);
+    setPriority(preDraft.priority);
+    setEstimate(preDraft.estimate);
+    setLabelIds(preDraft.labelIds);
+    setSubIssues(preDraft.subIssues);
+    setKeptSubIssues(preDraft.keptSubIssues);
+    setRelations(preDraft.relations);
+    setKeptRelations(preDraft.keptRelations);
+    setDescPreview(preDraft.descPreview);
+    setPreDraft(null);
   };
 
   const handleSubmit = async () => {
@@ -552,37 +626,88 @@ export function CreateIssueDialog({
             </div>
           )}
         </div>
-        <div className="flex items-center justify-between gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!title.trim() || !teamId || drafting || submitting}
-            onClick={() => void draftWithAi()}
-            title="Expand the title into a specced issue with acceptance criteria, labels, sub-issues and relations"
-          >
-            {drafting ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="size-3.5" />
+        {hasAi && (
+          <div className="flex items-center gap-1.5 rounded-md border bg-muted/30 py-1.5 pr-1.5 pl-2.5">
+            <input
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  void draftWithAi();
+                }
+              }}
+              placeholder={
+                preDraft
+                  ? "Optional: what should change?"
+                  : "Optional guidance, e.g. focus on the mobile flow"
+              }
+              aria-label="AI drafting instructions"
+              className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 shrink-0"
+              disabled={!title.trim() || !teamId || drafting || submitting}
+              onClick={() => void draftWithAi()}
+              title={
+                preDraft
+                  ? "Generate a new take on this draft"
+                  : "Expand the title into a specced issue with acceptance criteria, labels, sub-issues and relations"
+              }
+            >
+              {drafting ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="size-3.5" />
+              )}
+              {drafting ? "Drafting…" : preDraft ? "Rephrase" : "Draft with AI"}
+            </Button>
+            <Select
+              value={effort}
+              onValueChange={(value) => setEffort(value as DraftEffort)}
+            >
+              <SelectTrigger
+                size="sm"
+                className="h-7 w-auto shrink-0 gap-1 text-xs"
+                aria-label="Draft length"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EFFORT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {preDraft && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 shrink-0 text-muted-foreground"
+                onClick={discardDraft}
+                disabled={drafting}
+                title="Discard the AI draft and restore what you had"
+              >
+                <Undo2 className="size-3.5" />
+                Discard
+              </Button>
             )}
-            {drafting ? "Drafting…" : "Draft with AI"}
-          </Button>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              disabled={!title.trim() || !teamId || submitting}
-              onClick={() => void handleSubmit()}
-            >
-              Create issue
-            </Button>
           </div>
+        )}
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            disabled={!title.trim() || !teamId || submitting}
+            onClick={() => void handleSubmit()}
+          >
+            Create issue
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

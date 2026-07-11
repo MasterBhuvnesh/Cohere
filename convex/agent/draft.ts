@@ -32,6 +32,25 @@ const ESTIMATES = [1, 2, 3, 5, 8, 13];
 
 const failure = v.object({ ok: v.literal(false), error: v.string() });
 
+export const draftEffortValidator = v.union(
+  v.literal("short"),
+  v.literal("concise"),
+  v.literal("detailed"),
+  v.literal("thorough")
+);
+
+/** Description-length guidance per effort level, injected into the prompt. */
+const EFFORT_GUIDANCE: Record<string, string> = {
+  short:
+    "Keep the description SHORT: 1-2 sentences of context and 2-3 acceptance criteria, under 80 words total.",
+  concise:
+    "Keep the description concise: a short context paragraph and 3-5 acceptance criteria, under 150 words total.",
+  detailed:
+    "Write a DETAILED description: context, suggested approach, and 5-8 acceptance criteria, around 250 words.",
+  thorough:
+    "Write a THOROUGH spec: context, proposed approach, risks/edge cases, testing notes, and 6-10 acceptance criteria, up to 450 words.",
+};
+
 /** Labels + recent issues the model may reference, never invented ids. */
 export const draftContext = internalQuery({
   args: {
@@ -60,6 +79,12 @@ export const draftContext = internalQuery({
     const team = await ctx.db.get(args.teamId);
     if (!team || team.orgId !== args.orgId) {
       throw new Error("Team not found");
+    }
+    if (args.projectId) {
+      const project = await ctx.db.get(args.projectId);
+      if (!project || project.orgId !== args.orgId) {
+        throw new Error("Project not found");
+      }
     }
     const orgLabels = await ctx.db
       .query("labels")
@@ -132,6 +157,12 @@ export const draftIssue = action({
     idea: v.string(),
     teamId: v.id("teams"),
     projectId: v.optional(v.id("projects")),
+    /** Optional user guidance, e.g. "focus on the mobile flow". */
+    instructions: v.optional(v.string()),
+    /** Description length: short | concise (default) | detailed | thorough. */
+    effort: v.optional(draftEffortValidator),
+    /** Set when rephrasing so the model revises instead of repeating. */
+    previousDescription: v.optional(v.string()),
   },
   returns: v.union(
     failure,
@@ -247,6 +278,13 @@ export const draftIssue = action({
         prompt: [
           `You draft fully specced issues for the team "${context.teamName}" in a software project tracker.`,
           `One-line idea from the user: ${idea}`,
+          args.instructions?.trim()
+            ? `Additional guidance from the user (follow it closely): ${args.instructions.trim()}`
+            : "",
+          args.previousDescription?.trim()
+            ? `The user asked for a REPHRASE. Previous draft description — write a meaningfully different/improved version, do not repeat it:\n${args.previousDescription.trim().slice(0, 1500)}`
+            : "",
+          EFFORT_GUIDANCE[args.effort ?? "concise"],
           context.orgLabels.length > 0
             ? `Workspace labels you may choose from: ${context.orgLabels.map((l) => l.name).join(", ")}`
             : "This workspace has no labels yet, so suggest none.",
@@ -254,7 +292,9 @@ export const draftIssue = action({
             ? `Existing team issues (identifier: title) you may reference for relations:\n${context.recentIssues.map((i) => `${i.identifier}: ${i.title}`).join("\n")}`
             : "There are no existing issues, so suggest no relations.",
           "Expand the idea into a well-specified issue. Priorities: urgent = production-breaking, high = important and time-sensitive, medium = normal, low = nice-to-have, none = unclear.",
-        ].join("\n\n"),
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
       });
 
       const labelsByName = new Map(
