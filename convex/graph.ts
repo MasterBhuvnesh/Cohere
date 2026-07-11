@@ -25,6 +25,7 @@ export const forScope = orgQuery({
         title: v.string(),
         status: issueStatusValidator,
         priority: issuePriorityValidator,
+        estimate: v.optional(v.number()),
         assigneeName: v.optional(v.string()),
         assigneeImageUrl: v.optional(v.string()),
       })
@@ -89,6 +90,7 @@ export const forScope = orgQuery({
         title: issue.title,
         status: issue.status,
         priority: issue.priority,
+        estimate: issue.estimate,
         assigneeName: assignee?.name,
         assigneeImageUrl: assignee?.imageUrl,
       });

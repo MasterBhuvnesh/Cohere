@@ -69,8 +69,8 @@ function toFlowEdge(edge: GraphData["edges"][number]): Edge {
     label: edge.type === "duplicate_of" ? "duplicate" : edge.type,
     style: {
       stroke: color,
-      strokeWidth: 1.5,
-      ...(edge.type === "related" ? { strokeDasharray: "6 4" } : {}),
+      strokeWidth: 2.25,
+      ...(edge.type === "related" ? { strokeDasharray: "7 5" } : {}),
     },
     labelStyle: { fill: "var(--muted-foreground)", fontSize: 10 },
     labelBgStyle: { fill: "transparent" },
