@@ -4,7 +4,6 @@ import {
   Background,
   BackgroundVariant,
   Controls,
-  MarkerType,
   ReactFlow,
   ReactFlowProvider,
   useEdgesState,
@@ -75,8 +74,56 @@ function toFlowEdge(edge: GraphData["edges"][number]): Edge {
     },
     labelStyle: { fill: "var(--muted-foreground)", fontSize: 10 },
     labelBgStyle: { fill: "transparent" },
-    markerEnd: { type: MarkerType.ArrowClosed, color, width: 16, height: 16 },
+    // n8n-style endpoints: open ring where the edge leaves, filled dot
+    // where it lands (markers defined in EdgeMarkerDefs).
+    markerStart: `url(#gd-ring-${edge.type})`,
+    markerEnd: `url(#gd-fill-${edge.type})`,
   };
+}
+
+/** Circle markers (per edge color) referenced by toFlowEdge. */
+function EdgeMarkerDefs() {
+  return (
+    <svg style={{ position: "absolute", width: 0, height: 0 }} aria-hidden>
+      <defs>
+        {(
+          Object.entries(EDGE_COLORS) as [keyof typeof EDGE_COLORS, string][]
+        ).map(([type, color]) => (
+          <g key={type}>
+            <marker
+              id={`gd-fill-${type}`}
+              viewBox="0 0 8 8"
+              refX="4"
+              refY="4"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto"
+            >
+              <circle cx="4" cy="4" r="3" fill={color} />
+            </marker>
+            <marker
+              id={`gd-ring-${type}`}
+              viewBox="0 0 8 8"
+              refX="4"
+              refY="4"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto"
+            >
+              <circle
+                cx="4"
+                cy="4"
+                r="2.5"
+                fill="var(--background)"
+                stroke={color}
+                strokeWidth="1.5"
+              />
+            </marker>
+          </g>
+        ))}
+      </defs>
+    </svg>
+  );
 }
 
 /**
@@ -244,6 +291,7 @@ function GraphInner() {
 
       <div className="flex min-h-0 flex-1">
         <div className="relative min-w-0 flex-1" onDrop={onDrop} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}>
+          <EdgeMarkerDefs />
           {scopeArgs === null ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
               <Waypoints className="size-8 text-muted-foreground/50" />
