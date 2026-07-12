@@ -87,6 +87,17 @@ type GithubEvent = {
   repositories?: { full_name?: string }[];
   repositories_added?: { full_name?: string }[];
   repositories_removed?: { full_name?: string }[];
+  sender?: { type?: string };
+  issue?: {
+    number: number;
+    title?: string;
+    body?: string | null;
+    state_reason?: string | null;
+  };
+  comment?: {
+    body?: string;
+    user?: { login?: string; type?: string };
+  };
   pull_request?: {
     number: number;
     title?: string;
@@ -143,6 +154,45 @@ http.route({
         repositoriesAdded: names(event.repositories_added),
         repositoriesRemoved: names(event.repositories_removed),
       });
+      return new Response(null, { status: 200 });
+    }
+
+    // GitHub → Cohere issue sync. Bot senders are skipped: our own PATCHes
+    // and attachment comments echo back as webhook events from the app bot,
+    // and reacting to them would loop.
+    if (eventType === "issues" || eventType === "issue_comment") {
+      const isBot =
+        event.sender?.type === "Bot" || event.comment?.user?.type === "Bot";
+      const repo = event.repository?.full_name;
+      const number = event.issue?.number;
+      if (isBot || !repo || number === undefined) {
+        return new Response(null, { status: 200 });
+      }
+      if (eventType === "issue_comment" && event.action === "created") {
+        await ctx.runMutation(internal.github.sync.applyGithubIssueEvent, {
+          installationId,
+          repo,
+          number,
+          action: "commented",
+          commentAuthor: event.comment?.user?.login,
+          commentBody: event.comment?.body,
+        });
+      } else if (
+        eventType === "issues" &&
+        (event.action === "edited" ||
+          event.action === "closed" ||
+          event.action === "reopened")
+      ) {
+        await ctx.runMutation(internal.github.sync.applyGithubIssueEvent, {
+          installationId,
+          repo,
+          number,
+          action: event.action,
+          title: event.issue?.title,
+          body: event.issue?.body ?? undefined,
+          stateReason: event.issue?.state_reason ?? undefined,
+        });
+      }
       return new Response(null, { status: 200 });
     }
 

@@ -175,7 +175,10 @@ export default defineSchema({
   comments: defineTable({
     orgId: v.id("organizations"),
     issueId: v.id("issues"),
-    authorId: v.id("users"),
+    /** Absent for external comments — see externalAuthor */
+    authorId: v.optional(v.id("users")),
+    /** Display name of an external author (e.g. a GitHub login) */
+    externalAuthor: v.optional(v.string()),
     body: v.string(),
     /** User ids @mentioned in the body */
     mentions: v.optional(v.array(v.id("users"))),

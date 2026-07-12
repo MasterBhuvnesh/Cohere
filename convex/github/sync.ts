@@ -9,6 +9,7 @@ import {
 import { logActivity } from "../lib/activity";
 import { getAuthContext } from "../lib/auth";
 import { orgQuery } from "../lib/customFunctions";
+import { createNotification } from "../notifications";
 
 /**
  * Data half of the GitHub sync layer: everything that reads or writes the
@@ -225,6 +226,162 @@ export const recordSyncFailure = internalMutation({
       type: "github_sync_failed",
       newValue: args.reason.slice(0, 140),
     });
+    return null;
+  },
+});
+
+/** Our own sync footer, stripped from bodies that come back from GitHub. */
+const SYNC_FOOTER = /\n*---\n_Synced from Cohere issue \*\*.+?\*\*\._\s*$/;
+
+/**
+ * GitHub → Cohere: apply a change made on the linked GitHub issue. Bot
+ * events are filtered in http.ts, so by the time we're here a human edited,
+ * closed, reopened, or commented on GitHub. All writes use the github
+ * system actor and never schedule an outbound push (no echo loops).
+ */
+export const applyGithubIssueEvent = internalMutation({
+  args: {
+    installationId: v.number(),
+    repo: v.string(),
+    number: v.number(),
+    action: v.union(
+      v.literal("edited"),
+      v.literal("closed"),
+      v.literal("reopened"),
+      v.literal("commented")
+    ),
+    title: v.optional(v.string()),
+    body: v.optional(v.string()),
+    /** GitHub state_reason when closing ("completed" | "not_planned"). */
+    stateReason: v.optional(v.string()),
+    /** For comments: the GitHub login + comment body. */
+    commentAuthor: v.optional(v.string()),
+    commentBody: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const integration = await ctx.db
+      .query("integrations")
+      .withIndex("by_installation", (q) =>
+        q.eq("installationId", args.installationId)
+      )
+      .first();
+    if (!integration || !integration.enabled) {
+      return null;
+    }
+    const link = await ctx.db
+      .query("githubIssues")
+      .withIndex("by_org_repo_number", (q) =>
+        q
+          .eq("orgId", integration.orgId)
+          .eq("repo", args.repo)
+          .eq("number", args.number)
+      )
+      .first();
+    if (!link) {
+      return null; // not a synced issue
+    }
+    const issue = await ctx.db.get(link.issueId);
+    if (!issue) {
+      return null;
+    }
+    const orgId = integration.orgId;
+
+    const notifyStatusChange = async (newStatus: string) => {
+      const recipients = new Set(
+        [issue.creatorId, issue.assigneeId].filter(
+          (id): id is NonNullable<typeof id> => id !== undefined
+        )
+      );
+      for (const userId of recipients) {
+        await createNotification(ctx, {
+          orgId,
+          userId,
+          systemActor: "github",
+          issueId: issue._id,
+          type: "status_changed",
+          newValue: newStatus,
+        });
+      }
+    };
+
+    switch (args.action) {
+      case "edited": {
+        const title = args.title?.trim();
+        if (title && title !== issue.title) {
+          await ctx.db.patch(issue._id, { title });
+          await logActivity(ctx, {
+            orgId,
+            issueId: issue._id,
+            systemActor: "github",
+            type: "title_changed",
+            field: "title",
+            oldValue: issue.title,
+            newValue: title,
+          });
+        }
+        if (args.body !== undefined) {
+          const description = args.body.replace(SYNC_FOOTER, "").trim();
+          if (description !== (issue.description ?? "")) {
+            await ctx.db.patch(issue._id, {
+              description: description || undefined,
+            });
+          }
+        }
+        break;
+      }
+      case "closed": {
+        const next = args.stateReason === "not_planned" ? "canceled" : "done";
+        if (issue.status !== next) {
+          await ctx.db.patch(issue._id, { status: next });
+          await logActivity(ctx, {
+            orgId,
+            issueId: issue._id,
+            systemActor: "github",
+            type: "status_changed",
+            field: "status",
+            oldValue: issue.status,
+            newValue: next,
+          });
+          await notifyStatusChange(next);
+        }
+        break;
+      }
+      case "reopened": {
+        if (issue.status === "done" || issue.status === "canceled") {
+          await ctx.db.patch(issue._id, { status: "todo" });
+          await logActivity(ctx, {
+            orgId,
+            issueId: issue._id,
+            systemActor: "github",
+            type: "status_changed",
+            field: "status",
+            oldValue: issue.status,
+            newValue: "todo",
+          });
+          await notifyStatusChange("todo");
+        }
+        break;
+      }
+      case "commented": {
+        if (!args.commentBody?.trim()) {
+          break;
+        }
+        await ctx.db.insert("comments", {
+          orgId,
+          issueId: issue._id,
+          externalAuthor: args.commentAuthor ?? "GitHub user",
+          body: args.commentBody.trim(),
+        });
+        await logActivity(ctx, {
+          orgId,
+          issueId: issue._id,
+          systemActor: "github",
+          type: "commented",
+        });
+        break;
+      }
+    }
     return null;
   },
 });

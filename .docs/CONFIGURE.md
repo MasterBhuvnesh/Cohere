@@ -151,6 +151,11 @@ under Repository permissions: **Issues: Read and write**. Then, on the app
 page after creation, note the **App ID** and generate a **private key**
 ("Private keys" → Generate) — a `.pem` file downloads.
 
+For **two-way sync** (GitHub → Cohere: edits, close/reopen, and comments on
+the linked GitHub issue reflected back), additionally subscribe to the
+**Issues** and **Issue comment** events. Events from bots (including the
+app itself) are ignored to prevent echo loops.
+
 ### 2. Set Convex environment variables
 
 The app slug is in the app page URL: `github.com/settings/apps/<slug>`.

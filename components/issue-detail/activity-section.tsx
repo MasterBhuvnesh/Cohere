@@ -344,8 +344,17 @@ function CommentItem({
   return (
     <div className="rounded-lg border bg-card/50">
       <div className="flex items-center gap-2 px-3 pt-2.5">
-        <UserAvatar name={comment.authorName} imageUrl={comment.authorImageUrl} />
+        {comment.external ? (
+          <GithubIcon className="size-5" />
+        ) : (
+          <UserAvatar name={comment.authorName} imageUrl={comment.authorImageUrl} />
+        )}
         <span className="text-xs font-medium">{comment.authorName}</span>
+        {comment.external && (
+          <span className="rounded-full border px-1.5 text-[10px] text-muted-foreground">
+            via GitHub
+          </span>
+        )}
         <span className="text-xs text-muted-foreground">
           {formatRelativeTime(comment._creationTime)}
         </span>

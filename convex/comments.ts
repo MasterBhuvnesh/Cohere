@@ -11,11 +11,13 @@ const enrichedCommentValidator = v.object({
   _id: v.id("comments"),
   _creationTime: v.number(),
   issueId: v.id("issues"),
-  authorId: v.id("users"),
+  authorId: v.optional(v.id("users")),
   body: v.string(),
   mentions: v.array(v.id("users")),
   authorName: v.string(),
   authorImageUrl: v.optional(v.string()),
+  /** True for comments mirrored from GitHub (externalAuthor set). */
+  external: v.boolean(),
   /** Resolved names for everyone @mentioned, for highlight rendering. */
   mentionedUsers: v.array(
     v.object({ userId: v.id("users"), name: v.string() })
@@ -78,7 +80,7 @@ export const listByIssue = orgQuery({
 
     const result = [];
     for (const comment of comments) {
-      const author = await getUser(comment.authorId);
+      const author = comment.authorId ? await getUser(comment.authorId) : null;
       const mentions = comment.mentions ?? [];
       const mentionedUsers = [];
       for (const userId of mentions) {
@@ -94,8 +96,10 @@ export const listByIssue = orgQuery({
         authorId: comment.authorId,
         body: comment.body,
         mentions,
-        authorName: author?.name ?? "Unknown user",
+        authorName:
+          comment.externalAuthor ?? author?.name ?? "Unknown user",
         authorImageUrl: author?.imageUrl,
+        external: comment.externalAuthor !== undefined,
         mentionedUsers,
       });
     }
