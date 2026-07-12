@@ -236,6 +236,7 @@ export const getIssueFigmaContext = internalQuery({
       identifier: v.string(),
       issueTitle: v.string(),
       issueStatus: v.string(),
+      orgSlug: v.optional(v.string()),
       links: v.array(
         v.object({
           linkId: v.id("figmaLinks"),
@@ -257,6 +258,7 @@ export const getIssueFigmaContext = internalQuery({
       return null;
     }
     const team = await ctx.db.get(issue.teamId);
+    const org = await ctx.db.get(issue.orgId);
     const links = await ctx.db
       .query("figmaLinks")
       .withIndex("by_issue", (q) => q.eq("issueId", args.issueId))
@@ -266,6 +268,7 @@ export const getIssueFigmaContext = internalQuery({
       identifier: `${team?.key ?? "?"}-${issue.number}`,
       issueTitle: issue.title,
       issueStatus: issue.status,
+      orgSlug: org?.slug,
       links: links.map((link) => ({
         linkId: link._id,
         fileKey: link.fileKey,
@@ -562,14 +565,20 @@ export const updateDevResources = internalAction({
     }
     try {
       const token = await ensureToken(ctx, context);
+      const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
+      const url = `${siteUrl}/${context.orgSlug}/issue/${args.issueId}`;
+      const name = devResourceName(
+        context.identifier,
+        context.issueStatus,
+        context.issueTitle
+      );
+      // PUT requires the dev_resources array with id + name + url per entry
+      // (url is mandatory even when unchanged).
       await figmaFetch(token, "PUT", "/v1/dev_resources", {
         dev_resources: targets.map((link) => ({
           id: link.devResourceId,
-          name: devResourceName(
-            context.identifier,
-            context.issueStatus,
-            context.issueTitle
-          ),
+          name,
+          url,
         })),
       });
     } catch (error) {
