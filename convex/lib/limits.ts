@@ -1,9 +1,14 @@
+import { ConvexError } from "convex/values";
 import { Doc } from "../_generated/dataModel";
 import { MutationCtx } from "../_generated/server";
 
 /**
  * Free-tier caps. Pro/Enterprise are unlimited app-side; Clerk enforces
  * paid seat limits at invite time.
+ *
+ * Limit breaches throw `ConvexError` (not a plain Error): Convex treats it
+ * as an expected application error, so the client catch shows a toast and
+ * the upgrade prompt without the noisy "Server Error" dev overlay.
  */
 export const FREE_PLAN_LIMITS = {
   seats: 3,
@@ -27,7 +32,7 @@ export async function assertCanCreateIssue(
     .withIndex("by_org", (q) => q.eq("orgId", org._id))
     .collect();
   if (issues.length >= FREE_PLAN_LIMITS.issues) {
-    throw new Error(
+    throw new ConvexError(
       `Free plan is limited to ${FREE_PLAN_LIMITS.issues} issues. Upgrade to Pro for unlimited issues.`
     );
   }
@@ -45,7 +50,7 @@ export async function assertCanCreateProject(
     .withIndex("by_org", (q) => q.eq("orgId", org._id))
     .collect();
   if (projects.length >= FREE_PLAN_LIMITS.projects) {
-    throw new Error(
+    throw new ConvexError(
       `Free plan is limited to ${FREE_PLAN_LIMITS.projects} projects. Upgrade to Pro for unlimited projects.`
     );
   }
@@ -63,7 +68,7 @@ export async function assertUnderSeatLimit(
     .withIndex("by_org", (q) => q.eq("orgId", org._id))
     .collect();
   if (members.length >= FREE_PLAN_LIMITS.seats) {
-    throw new Error(
+    throw new ConvexError(
       `Free plan is limited to ${FREE_PLAN_LIMITS.seats} members. Upgrade to Pro for more seats.`
     );
   }
