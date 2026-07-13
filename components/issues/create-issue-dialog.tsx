@@ -3,6 +3,7 @@
 import { useAuth } from "@clerk/nextjs";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
+  CalendarClock,
   CornerDownRight,
   FolderKanban,
   LayoutTemplate,
@@ -36,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { inputDateToMs } from "@/components/projects/dates";
 import {
   IssuePriority,
   IssueStatus,
@@ -116,6 +118,7 @@ export function CreateIssueDialog({
   const [status, setStatus] = useState<IssueStatus>("todo");
   const [priority, setPriority] = useState<IssuePriority>("none");
   const [labelIds, setLabelIds] = useState<Id<"labels">[]>([]);
+  const [dueDate, setDueDate] = useState("");
   const [projectId, setProjectId] = useState<Id<"projects"> | null>(null);
   const [syncToGithub, setSyncToGithub] = useState(false);
   const [githubRepo, setGithubRepo] = useState<string | null>(null);
@@ -167,6 +170,7 @@ export function CreateIssueDialog({
     setStatus("todo");
     setPriority("none");
     setLabelIds([]);
+    setDueDate("");
     setProjectId(null);
     setSyncToGithub(false);
     setGithubRepo(null);
@@ -274,6 +278,7 @@ export function CreateIssueDialog({
         priority,
         estimate: estimate ?? undefined,
         labelIds: labelIds.length > 0 ? labelIds : undefined,
+        dueDate: inputDateToMs(dueDate, "end"),
         projectId: projectId ?? undefined,
         githubRepo: syncRepo ?? undefined,
         subIssues: chosenSubIssues.length > 0 ? chosenSubIssues : undefined,
@@ -446,6 +451,19 @@ export function CreateIssueDialog({
                 ))}
               </SelectContent>
             </Select>
+            <div
+              className="flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs transition-colors hover:bg-accent"
+              title="Due date"
+            >
+              <CalendarClock className="size-3.5 shrink-0 text-muted-foreground" />
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                aria-label="Due date"
+                className="bg-transparent text-foreground outline-none scheme-light dark:scheme-dark"
+              />
+            </div>
             <Select
               value={projectId ?? NO_PROJECT}
               onValueChange={(value) => {
