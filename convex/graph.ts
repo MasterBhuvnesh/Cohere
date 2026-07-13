@@ -58,6 +58,9 @@ export const forScope = orgQuery({
         estimate: v.optional(v.number()),
         assigneeName: v.optional(v.string()),
         assigneeImageUrl: v.optional(v.string()),
+        /** Project the issue belongs to, for identifying it on the canvas. */
+        projectName: v.optional(v.string()),
+        projectColor: v.optional(v.string()),
       })
     ),
     edges: v.array(
@@ -97,6 +100,7 @@ export const forScope = orgQuery({
 
     const teamCache = new Map<Id<"teams">, Doc<"teams"> | null>();
     const userCache = new Map<Id<"users">, Doc<"users"> | null>();
+    const projectCache = new Map<Id<"projects">, Doc<"projects"> | null>();
     const nodes = [];
     for (const issue of issues) {
       if (!teamCache.has(issue.teamId)) {
@@ -110,6 +114,15 @@ export const forScope = orgQuery({
         }
         assignee = userCache.get(issue.assigneeId) ?? null;
       }
+      let project: Doc<"projects"> | null = null;
+      if (issue.projectId) {
+        if (!projectCache.has(issue.projectId)) {
+          projectCache.set(issue.projectId, await ctx.db.get(issue.projectId));
+        }
+        const cached = projectCache.get(issue.projectId) ?? null;
+        // Guard against a cross-org id sneaking in via a stale reference.
+        project = cached && cached.orgId === ctx.org._id ? cached : null;
+      }
       nodes.push({
         issueId: issue._id,
         identifier: `${team?.key ?? "?"}-${issue.number}`,
@@ -119,6 +132,8 @@ export const forScope = orgQuery({
         estimate: issue.estimate,
         assigneeName: assignee?.name,
         assigneeImageUrl: assignee?.imageUrl,
+        projectName: project?.name,
+        projectColor: project?.color,
       });
     }
 

@@ -19,6 +19,8 @@ export type IssueNodeData = {
   estimate?: number;
   assigneeName?: string;
   assigneeImageUrl?: string;
+  projectName?: string;
+  projectColor?: string;
 };
 
 export type IssueFlowNode = Node<IssueNodeData, "issue">;
@@ -52,6 +54,18 @@ export function IssueNode({ data }: NodeProps<IssueFlowNode>) {
       <p className="mt-1 line-clamp-2 px-0.5 text-xs font-medium leading-snug">
         {data.title}
       </p>
+      {data.projectName && (
+        <div
+          className="mt-1.5 flex w-fit max-w-full items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px]"
+          title={`Project: ${data.projectName}`}
+        >
+          <span
+            className="size-2 shrink-0 rounded-full"
+            style={{ backgroundColor: data.projectColor ?? "var(--primary)" }}
+          />
+          <span className="truncate font-medium">{data.projectName}</span>
+        </div>
+      )}
       <div className="mt-2 flex flex-col gap-px overflow-hidden rounded-lg">
         <div className="flex items-center justify-between bg-muted/60 px-2 py-1 text-[11px]">
           <span className="text-muted-foreground">Status</span>
