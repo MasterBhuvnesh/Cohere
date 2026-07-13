@@ -1,6 +1,6 @@
 "use client";
 
-import { useOrganization, useUser } from "@clerk/nextjs";
+import { useAuth, useOrganization, useUser } from "@clerk/nextjs";
 import type {
   OrganizationCustomRoleKey,
   OrganizationInvitationResource,
@@ -43,7 +43,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { planForOrg } from "@/lib/plans";
+import { ENTERPRISE_PLAN, planForOrg, PRO_PLAN } from "@/lib/plans";
 
 const ROLES: { value: OrganizationCustomRoleKey; label: string }[] = [
   { value: "org:member", label: "Member" },
@@ -96,6 +96,7 @@ function membershipDisplayName(
  */
 export function MembersManager() {
   const org = useQuery(api.organizations.current);
+  const { has } = useAuth();
   const { isLoaded, organization, membership, memberships, invitations } =
     useOrganization({
       memberships: { infinite: true },
@@ -118,7 +119,16 @@ export function MembersManager() {
     );
   }
 
-  const plan = planForOrg(org.plan);
+  // Clerk billing is the live source of truth for the subscription; the
+  // Convex org.plan lags by a webhook round-trip after checkout. Prefer
+  // Clerk's has() so a just-upgraded workspace can invite immediately
+  // instead of being blocked by the free-plan seat cap until the webhook
+  // lands, falling back to the synced plan while has() resolves.
+  const plan = has?.({ plan: ENTERPRISE_PLAN.slug })
+    ? ENTERPRISE_PLAN
+    : has?.({ plan: PRO_PLAN.slug })
+      ? PRO_PLAN
+      : planForOrg(org.plan);
   const isAdmin = membership?.role === "org:admin";
   const memberCount = memberships?.count ?? organization.membersCount;
   const pendingCount =
@@ -143,7 +153,7 @@ export function MembersManager() {
         <InviteMemberForm
           atSeatLimit={atSeatLimit}
           planName={plan.name}
-          isFreePlan={org.plan === "free"}
+          isFreePlan={plan.plan === "free"}
           onInvited={() => void invitations?.revalidate?.()}
         />
       )}
