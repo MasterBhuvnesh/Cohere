@@ -3,6 +3,7 @@ import {
   customMutation,
   customQuery,
 } from "convex-helpers/server/customFunctions";
+import { ConvexError } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { getAuthContext, getCurrentUser } from "./auth";
 
@@ -52,7 +53,9 @@ export const orgAdminMutation = customMutation(
   customCtx(async (ctx) => {
     const auth = await getAuthContext(ctx);
     if (auth.membership.role !== "admin") {
-      throw new Error("Admin access required");
+      // ConvexError (not a plain Error) so the client catch shows a toast
+      // instead of the noisy "Server Error" dev overlay.
+      throw new ConvexError("Admin access required");
     }
     return auth;
   })

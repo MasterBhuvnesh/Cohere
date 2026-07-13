@@ -1,7 +1,8 @@
 "use client";
 
+import { useOrganization } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -92,6 +93,8 @@ function RepositoryList({ repositories }: { repositories: string[] }) {
 }
 
 export function IntegrationsManager() {
+  const { membership } = useOrganization();
+  const isAdmin = membership?.role === "org:admin";
   const data = useQuery(api.integrations.get);
   const beginInstall = useMutation(api.integrations.beginInstall);
   const setEnabled = useMutation(api.integrations.setEnabled);
@@ -125,6 +128,14 @@ export function IntegrationsManager() {
         </p>
       </div>
 
+      {!isAdmin && (
+        <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+          <Lock className="size-3.5 shrink-0" />
+          Only workspace admins can connect or manage integrations. Ask an
+          admin to make changes here.
+        </div>
+      )}
+
       <div className="rounded-lg border">
         <div className="flex items-center gap-3 p-4">
           <GithubIcon className="size-6 shrink-0" />
@@ -141,7 +152,7 @@ export function IntegrationsManager() {
           ) : connection === null ? (
             <Button
               size="sm"
-              disabled={!data.appConfigured || connecting}
+              disabled={!isAdmin || !data.appConfigured || connecting}
               onClick={() => void connect()}
             >
               {connecting && <Loader2 className="size-3.5 animate-spin" />}
@@ -150,6 +161,7 @@ export function IntegrationsManager() {
           ) : (
             <Switch
               checked={connection.enabled}
+              disabled={!isAdmin}
               onCheckedChange={(enabled) =>
                 setEnabled({ enabled }).catch(onError)
               }
@@ -197,48 +209,50 @@ export function IntegrationsManager() {
                 Review; merged PRs move them to Done. Manage repository access
                 from your GitHub App installation settings.
               </p>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-fit text-destructive hover:text-destructive"
-                  >
-                    Disconnect
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Disconnect GitHub?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Events stop being processed for this workspace.
-                      Already-linked pull requests stay on their issues. To
-                      revoke repository access entirely, also uninstall the
-                      app from GitHub.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => disconnect().catch(onError)}
-                      className="bg-destructive text-white hover:bg-destructive/90"
+              {isAdmin && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-fit text-destructive hover:text-destructive"
                     >
                       Disconnect
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Disconnect GitHub?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Events stop being processed for this workspace.
+                        Already-linked pull requests stay on their issues. To
+                        revoke repository access entirely, also uninstall the
+                        app from GitHub.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => disconnect().catch(onError)}
+                        className="bg-destructive text-white hover:bg-destructive/90"
+                      >
+                        Disconnect
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           </>
         )}
       </div>
 
-      <FigmaCard />
+      <FigmaCard isAdmin={isAdmin} />
     </div>
   );
 }
 
-function FigmaCard() {
+function FigmaCard({ isAdmin }: { isAdmin: boolean }) {
   const data = useQuery(api.integrations.getFigma);
   const beginConnect = useMutation(api.integrations.beginFigmaConnect);
   const setEnabled = useMutation(api.integrations.setFigmaEnabled);
@@ -279,7 +293,7 @@ function FigmaCard() {
         ) : connection === null ? (
           <Button
             size="sm"
-            disabled={!data.appConfigured || connecting}
+            disabled={!isAdmin || !data.appConfigured || connecting}
             onClick={() => void connect()}
           >
             {connecting && <Loader2 className="size-3.5 animate-spin" />}
@@ -288,6 +302,7 @@ function FigmaCard() {
         ) : (
           <Switch
             checked={connection.enabled}
+            disabled={!isAdmin}
             onCheckedChange={(enabled) =>
               setEnabled({ enabled }).catch(onError)
             }
@@ -326,35 +341,37 @@ function FigmaCard() {
               the issue sidebar) — the design&apos;s name and a thumbnail are
               fetched automatically.
             </p>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-fit text-destructive hover:text-destructive"
-                >
-                  Disconnect
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Disconnect Figma?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    The stored access token is deleted and previews stop
-                    updating. Already-linked designs stay on their issues.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => disconnect().catch(onError)}
-                    className="bg-destructive text-white hover:bg-destructive/90"
+            {isAdmin && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-fit text-destructive hover:text-destructive"
                   >
                     Disconnect
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Disconnect Figma?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      The stored access token is deleted and previews stop
+                      updating. Already-linked designs stay on their issues.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => disconnect().catch(onError)}
+                      className="bg-destructive text-white hover:bg-destructive/90"
+                    >
+                      Disconnect
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </>
       )}
