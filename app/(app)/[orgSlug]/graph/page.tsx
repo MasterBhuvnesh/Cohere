@@ -206,6 +206,14 @@ function GraphInner() {
 
   const [pending, setPending] = useState<Connection | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+  // A drop that would move an issue out of another project/cycle, awaiting
+  // confirmation so we never silently reassign it.
+  const [pendingDrop, setPendingDrop] = useState<{
+    issueId: string;
+    identifier: string;
+    position: { x: number; y: number };
+    fromName: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!data) {
@@ -285,20 +293,26 @@ function GraphInner() {
     setSelectedEdge(null);
   };
 
-  const onDrop = (event: DragEvent) => {
-    event.preventDefault();
-    const issueId = event.dataTransfer.getData(DRAG_TYPE);
-    if (!issueId) {
-      return;
+  // Human-readable name for a project/cycle id, matching the current scope kind.
+  const assignmentName = (id: string): string => {
+    if (kind === "project") {
+      return projects?.find((p) => p._id === id)?.name ?? "another project";
     }
+    const cycle = cycles?.find((c) => c._id === id);
+    return cycle
+      ? `${cycle.teamKey} · ${cycle.name ?? `Cycle ${cycle.number}`}`
+      : "another cycle";
+  };
+  const scopeLabel = scopeId ? assignmentName(scopeId) : "this scope";
+
+  /** Add the issue to the current scope (reassigns projectId/cycleId). */
+  const applyDrop = (
+    issueId: string,
+    position: { x: number; y: number }
+  ) => {
     if (!scopeArgs) {
-      toast.error("Pick a project or cycle first");
       return;
     }
-    const position = screenToFlowPosition({
-      x: event.clientX,
-      y: event.clientY,
-    });
     droppedPositions.current.set(issueId, position);
     updateIssue({ issueId: issueId as Id<"issues">, ...scopeArgs }).catch(
       onError
@@ -315,6 +329,47 @@ function GraphInner() {
       ]);
       return current;
     });
+  };
+
+  const onDrop = (event: DragEvent) => {
+    event.preventDefault();
+    const raw = event.dataTransfer.getData(DRAG_TYPE);
+    if (!raw) {
+      return;
+    }
+    if (!scopeArgs) {
+      toast.error("Pick a project or cycle first");
+      return;
+    }
+    let dropped: {
+      id: string;
+      projectId: string | null;
+      cycleId: string | null;
+      identifier: string;
+    };
+    try {
+      dropped = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    const position = screenToFlowPosition({
+      x: event.clientX,
+      y: event.clientY,
+    });
+    // Only the field this scope writes matters: a project graph reassigns
+    // projectId, a cycle graph reassigns cycleId.
+    const current = kind === "project" ? dropped.projectId : dropped.cycleId;
+    if (current && current !== scopeId) {
+      // Already in a different project/cycle — ask before moving it.
+      setPendingDrop({
+        issueId: dropped.id,
+        identifier: dropped.identifier,
+        position,
+        fromName: assignmentName(current),
+      });
+      return;
+    }
+    applyDrop(dropped.id, position);
   };
 
   // ── Search panel ──
@@ -438,11 +493,14 @@ function GraphInner() {
           </InputGroup>
 
           {debouncedQuery === "" ? (
-            <p className="text-xs text-muted-foreground">
-              Search any issue, then drag it onto the canvas to pull it into
-              this {kind ?? "scope"} and wire up its dependencies. Drag from a
-              card&apos;s right dot to another card&apos;s left dot to create a
-              relation; click an edge to remove it.
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              This graph maps one {kind ?? "project or cycle"}, so every node
+              lives in the same {kind ?? "scope"} and relations are drawn
+              between them. Dragging an issue onto the canvas adds it to this{" "}
+              {kind ?? "scope"} — if it&apos;s already in another one,
+              you&apos;ll be asked first. Drag from a card&apos;s right dot to
+              another card&apos;s left dot to link them; click an edge to
+              remove it.
             </p>
           ) : results === undefined ? (
             <div className="flex justify-center py-6">
@@ -459,7 +517,15 @@ function GraphInner() {
                   key={issue._id}
                   draggable
                   onDragStart={(event) => {
-                    event.dataTransfer.setData(DRAG_TYPE, issue._id);
+                    event.dataTransfer.setData(
+                      DRAG_TYPE,
+                      JSON.stringify({
+                        id: issue._id,
+                        projectId: issue.projectId ?? null,
+                        cycleId: issue.cycleId ?? null,
+                        identifier: `${teamKey.get(issue.teamId) ?? "?"}-${issue.number}`,
+                      })
+                    );
                     event.dataTransfer.effectAllowed = "move";
                   }}
                   className="cursor-grab rounded-md border bg-card px-2.5 py-2 shadow-xs transition-colors hover:bg-accent active:cursor-grabbing"
@@ -545,6 +611,49 @@ function GraphInner() {
               onClick={deleteSelectedEdge}
             >
               Remove relation
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm moving an issue out of another project/cycle on drop */}
+      <Dialog
+        open={pendingDrop !== null}
+        onOpenChange={(open) => !open && setPendingDrop(null)}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">
+              Move {pendingDrop?.identifier} to {scopeLabel}?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {pendingDrop?.identifier} is currently in{" "}
+            <span className="font-medium text-foreground">
+              {pendingDrop?.fromName}
+            </span>
+            . This graph only shows issues in one {kind}, so adding it here
+            moves it out of {pendingDrop?.fromName} and into{" "}
+            <span className="font-medium text-foreground">{scopeLabel}</span>.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPendingDrop(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                if (pendingDrop) {
+                  applyDrop(pendingDrop.issueId, pendingDrop.position);
+                  setPendingDrop(null);
+                }
+              }}
+            >
+              Move here
             </Button>
           </div>
         </DialogContent>
