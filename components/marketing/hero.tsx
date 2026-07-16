@@ -7,7 +7,7 @@ import { MockApp } from "@/components/marketing/mock-app";
 export function Hero() {
   return (
     <section className="relative overflow-hidden">
-      <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-6 pt-20 text-center md:pt-28">
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-6 pt-10 text-center md:pt-14">
         <Link
           href="/#ai"
           className="group inline-flex items-center overflow-hidden rounded-full border bg-background text-sm shadow-sm transition-all duration-200 hover:shadow-md"
@@ -39,7 +39,7 @@ export function Hero() {
           <Button
             size="lg"
             variant="outline"
-            className="h-11 rounded-lg px-6 backdrop:blur-sm"
+            className="h-11 rounded-lg px-6 backdrop:blur-sm border border-border/50 bg-background/80 backdrop:backdrop-blur-sm "
             asChild
           >
             <Link href="/pricing">View pricing</Link>
