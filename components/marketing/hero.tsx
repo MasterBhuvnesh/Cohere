@@ -7,11 +7,7 @@ import { MockApp } from "@/components/marketing/mock-app";
 export function Hero() {
   return (
     <section className="relative overflow-hidden">
-      {/* Faint blueprint grid, fading out from the top center. */}
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-size-[56px_56px] mask-[radial-gradient(ellipse_75%_60%_at_50%_0%,black_30%,transparent)]"
-      />
+      {/* Soft glow from the top center. */}
       <div
         aria-hidden
         className="absolute inset-x-0 top-0 -z-10 h-112 bg-[radial-gradient(ellipse_60%_100%_at_50%_0%,color-mix(in_oklch,var(--foreground),transparent_94%),transparent)]"
