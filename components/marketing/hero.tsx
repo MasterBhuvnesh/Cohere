@@ -1,8 +1,7 @@
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { FeatureTabs } from "@/components/marketing/feature-tabs";
-import { MockApp } from "@/components/marketing/mock-app";
+import { HeroShowcase } from "@/components/marketing/hero-showcase";
 
 export function Hero() {
   return (
@@ -50,17 +49,7 @@ export function Hero() {
         </p>
       </div>
 
-      <div className="mx-auto mt-12 flex w-full max-w-6xl flex-col items-center px-6 md:mt-16">
-        <FeatureTabs />
-        <div className="relative mt-6 w-full md:mt-8">
-          <MockApp />
-          {/* Fade the bottom of the screenshot into the next section. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 -bottom-px h-28 bg-linear-to-t from-background to-transparent"
-          />
-        </div>
-      </div>
+      <HeroShowcase />
     </section>
   );
 }
