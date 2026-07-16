@@ -7,12 +7,6 @@ import { MockApp } from "@/components/marketing/mock-app";
 export function Hero() {
   return (
     <section className="relative overflow-hidden">
-      {/* Soft glow from the top center. */}
-      <div
-        aria-hidden
-        className="absolute inset-x-0 top-0 -z-10 h-112 bg-[radial-gradient(ellipse_60%_100%_at_50%_0%,color-mix(in_oklch,var(--foreground),transparent_94%),transparent)]"
-      />
-
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-6 pt-20 text-center md:pt-28">
         <Link
           href="/#ai"

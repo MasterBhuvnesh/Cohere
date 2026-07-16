@@ -20,7 +20,7 @@ export default function MarketingLayout({
 }) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl">
         <div className="relative mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6">
           <Link
             href="/"
