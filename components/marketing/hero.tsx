@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, Sparkles } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MockApp } from "@/components/marketing/mock-app";
@@ -19,13 +19,12 @@ export function Hero() {
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-6 pt-20 text-center md:pt-28">
         <Link
           href="/#ai"
-          className="group flex items-center gap-2 rounded-full border bg-background/60 py-1 pr-1 pl-3 text-xs backdrop-blur transition-colors hover:border-ring/60"
+          className="group flex items-center gap-2.5 rounded-full border bg-background py-1 pr-1 pl-3.5 text-[13px] shadow-sm transition-colors hover:border-ring/50"
         >
-          <span className="flex items-center gap-1.5 text-muted-foreground transition-colors group-hover:text-foreground">
-            <Sparkles className="size-3 text-primary" />
+          <span className="font-medium text-foreground">
             Introducing the AI agent
           </span>
-          <span className="flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground transition-colors group-hover:bg-accent">
+          <span className="flex items-center gap-1 rounded-full border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors group-hover:bg-accent group-hover:text-foreground">
             Read more
             <ArrowUpRight className="size-3" />
           </span>
