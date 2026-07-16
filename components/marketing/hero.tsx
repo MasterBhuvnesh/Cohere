@@ -7,10 +7,12 @@ export function Hero() {
   return (
     <section className="relative overflow-hidden">
       {/* Faint grid behind the hero copy: fully visible at the center, then
-          gradually thinning out to transparent on every side. */}
+          gradually thinning out to transparent on every side — including a
+          clear bottom fade above the showcase (the grid layer only spans the
+          copy area, so the ellipse fade lands inside the visible region). */}
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,color-mix(in_oklab,var(--border),transparent_45%)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklab,var(--border),transparent_45%)_1px,transparent_1px)] bg-size-[64px_64px] mask-[radial-gradient(ellipse_55%_50%_at_50%_42%,black_25%,rgba(0,0,0,0.45)_55%,transparent_78%)]"
+        className="absolute inset-x-0 top-0 -z-10 h-[30rem] bg-[linear-gradient(to_right,color-mix(in_oklab,var(--border),transparent_45%)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklab,var(--border),transparent_45%)_1px,transparent_1px)] bg-size-[64px_64px] mask-[radial-gradient(ellipse_55%_58%_at_50%_48%,black_22%,rgba(0,0,0,0.45)_55%,transparent_80%)] md:h-[34rem]"
       />
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-6 pt-10 text-center md:pt-14">
         <Link
