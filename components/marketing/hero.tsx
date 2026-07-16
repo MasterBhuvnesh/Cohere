@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FeatureTabs } from "@/components/marketing/feature-tabs";
@@ -10,14 +10,14 @@ export function Hero() {
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-6 pt-20 text-center md:pt-28">
         <Link
           href="/#ai"
-          className="group flex items-center gap-2.5 rounded-full border bg-background py-1 pr-1 pl-3.5 text-[13px] shadow-sm transition-colors hover:border-ring/50"
+          className="group inline-flex items-center overflow-hidden rounded-full border bg-background text-sm shadow-sm transition-all duration-200 hover:shadow-md"
         >
-          <span className="font-medium text-foreground">
+          <span className="px-5 py-2 font-medium text-foreground">
             Introducing the AI agent
           </span>
-          <span className="flex items-center gap-1 rounded-full border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors group-hover:bg-accent group-hover:text-foreground">
+          <span className="flex items-center gap-1 border-l bg-muted/50 px-4 py-2 font-medium text-muted-foreground transition-colors group-hover:bg-muted group-hover:text-foreground">
             Read more
-            <ArrowUpRight className="size-3" />
+            <ArrowUpRight className="size-3.5" />
           </span>
         </Link>
 
@@ -33,13 +33,13 @@ export function Hero() {
           <Button size="lg" className="h-11 rounded-lg px-6" asChild>
             <Link href="/sign-up">
               Start for free
-              <ArrowRight className="size-4" />
+              {/* <ArrowRight className="size-4" /> */}
             </Link>
           </Button>
           <Button
             size="lg"
             variant="outline"
-            className="h-11 rounded-lg px-6"
+            className="h-11 rounded-lg px-6 backdrop:blur-sm"
             asChild
           >
             <Link href="/pricing">View pricing</Link>
