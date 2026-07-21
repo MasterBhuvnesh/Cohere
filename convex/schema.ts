@@ -148,7 +148,8 @@ export default defineSchema({
     })
     .vectorIndex("by_embedding", {
       vectorField: "embedding",
-      dimensions: 1536,
+      // Must match the embedding model's output size: nv-embed-v1 → 4096.
+      dimensions: 4096,
       filterFields: ["orgId"],
     }),
 
