@@ -50,6 +50,31 @@ export const sweep = internalAction({
   },
 });
 
+/** Plumbing check, runnable from the CLI without any digest configured:
+    `npx convex run email/sendDigest:testTo '{"to":"you@example.com"}'`
+    Sends a minimal email through the same SES transport and surfaces the
+    raw SMTP error (auth, region, unverified identity) if anything is off. */
+export const testTo = internalAction({
+  args: { to: v.string() },
+  returns: v.string(),
+  handler: async (_ctx, args): Promise<string> => {
+    if (!isEmailConfigured()) {
+      return "SES_SMTP_USER / SES_SMTP_PASSWORD are not set";
+    }
+    const info = await transport().sendMail({
+      from: process.env.SES_FROM_EMAIL ?? "Skarm <no-reply@example.com>",
+      to: args.to,
+      subject: "Skarm test email — SES SMTP is working",
+      html: `<div style="font-family:sans-serif;padding:24px;">
+        <p style="font-size:16px;"><strong>&#10047; Skarm</strong></p>
+        <p>This is a test email from your Skarm deployment. If you are reading
+        this, the SES SMTP configuration works end to end.</p>
+      </div>`,
+    });
+    return `sent: ${info.messageId}`;
+  },
+});
+
 /** Build, render, and send one digest. `force` skips the empty-digest skip
     (used by the settings page's "Send test" button). */
 export const deliver = internalAction({
