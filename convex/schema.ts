@@ -134,6 +134,7 @@ export default defineSchema({
     .index("by_team_and_number", ["teamId", "number"])
     .index("by_team_and_status", ["teamId", "status"])
     .index("by_assignee", ["orgId", "assigneeId"])
+    .index("by_creator", ["orgId", "creatorId"])
     .index("by_project", ["projectId"])
     .index("by_cycle", ["cycleId"])
     .index("by_parent", ["parentIssueId"])

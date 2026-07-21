@@ -125,7 +125,7 @@ export function BoardCard({
       {...listeners}
       onClick={onOpen}
       className={cn(
-        "cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring [content-visibility:auto] [contain-intrinsic-size:auto_96px]",
         isDragging && "opacity-40"
       )}
     >
