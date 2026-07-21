@@ -60,12 +60,14 @@ const TABS: {
 ];
 
 function actionText(notification: {
-  type: "mention" | "assigned" | "status_changed";
+  type: "mention" | "assigned" | "status_changed" | "reply";
   newValue?: string;
 }): string {
   switch (notification.type) {
     case "mention":
       return "mentioned you on";
+    case "reply":
+      return "replied to your comment on";
     case "assigned":
       return "assigned you";
     case "status_changed": {
