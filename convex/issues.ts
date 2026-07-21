@@ -68,7 +68,7 @@ export const listByTeam = orgQuery({
   },
 });
 
-/** Paginated result shape for issue queries — matches `.paginate()`. */
+/** Paginated result shape for issue queries - matches `.paginate()`. */
 const paginatedIssues = v.object({
   page: v.array(v.object(issueShape)),
   isDone: v.boolean(),
@@ -210,7 +210,7 @@ export const getByNumber = orgQuery({
 /**
  * Core issue creation shared by `issues.create` and recurring templates
  * (convex/issueTemplates.ts). Owns numbering, sort order, labels, and the
- * activity log — the only code path that claims issue numbers.
+ * activity log - the only code path that claims issue numbers.
  */
 export async function insertIssue(
   ctx: MutationCtx,
@@ -376,7 +376,7 @@ export const create = orgMutation({
     }
 
     // Relations from drafting. The issue is brand new, so no existing-link
-    // dedupe is needed — just normalize blocked_by like issueRelations.create.
+    // dedupe is needed - just normalize blocked_by like issueRelations.create.
     const identifier = `${team.key}-${(await ctx.db.get(issueId))!.number}`;
     const linked = new Set<Id<"issues">>([issueId]);
     for (const relation of relations ?? []) {

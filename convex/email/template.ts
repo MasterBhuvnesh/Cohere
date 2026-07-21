@@ -2,7 +2,7 @@ import { DigestData, DigestIssue, DigestMention } from "../emailDigests";
 
 /**
  * Renders the digest email as self-contained, table-based HTML with inline
- * styles only — the subset of CSS that survives Gmail/Outlook. No external
+ * styles only - the subset of CSS that survives Gmail/Outlook. No external
  * images or fonts; the "logo" is a styled wordmark so nothing gets blocked.
  */
 
@@ -144,7 +144,7 @@ export function renderDigestHtml(data: DigestData, appUrl: string): string {
           </td>
         </tr>
         <tr><td style="padding:24px 32px 0 32px;">
-          <p style="margin:0;font-size:15px;color:#18181c;">${greeting}, ${escapeHtml(data.name.split(" ")[0])} — here's where your work stands.</p>
+          <p style="margin:0;font-size:15px;color:#18181c;">${greeting}, ${escapeHtml(data.name.split(" ")[0])} - here's where your work stands.</p>
         </td></tr>
         ${body}
         <tr><td style="padding:26px 32px 24px 32px;">

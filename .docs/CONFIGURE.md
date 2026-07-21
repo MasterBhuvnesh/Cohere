@@ -112,12 +112,12 @@ and picks which repositories to grant.
 GitHub → Settings → Developer settings → GitHub Apps → **New GitHub App**.
 
 Your Convex site URL is the `NEXT_PUBLIC_CONVEX_SITE_URL` value in
-`.env.local` (e.g. `https://your-deployment.convex.site` — note `.site`,
+`.env.local` (e.g. `https://your-deployment.convex.site` - note `.site`,
 not `.cloud`).
 
 | Field | Value |
 | --- | --- |
-| GitHub App name | `Skarm` (any unique name works — only the slug matters) |
+| GitHub App name | `Skarm` (any unique name works - only the slug matters) |
 | Description | see below |
 | Homepage URL | your app URL, e.g. `http://localhost:3000` |
 | Callback URL | leave empty (no OAuth identity is requested) |
@@ -127,7 +127,7 @@ not `.cloud`).
 | Redirect on update | **unchecked** (repo changes sync via webhook) |
 | Webhook → Active | checked |
 | Webhook URL | `<convex-site-url>/github-webhook` |
-| Webhook secret | a long random string — you set the same value on Convex below |
+| Webhook secret | a long random string - you set the same value on Convex below |
 | Repository permissions | **Pull requests: Read-only** (Metadata read is added automatically) |
 | Subscribe to events | **Pull request** (installation events are delivered automatically) |
 | Where can this app be installed? | "Only on this account" is fine; "Any account" if other GitHub orgs need it |
@@ -137,7 +137,7 @@ Suggested description:
 > Skarm is an AI-native issue tracker for teams that plan, track, and ship
 > together. This app links pull requests to Skarm issues: mention an issue
 > key like ENG-42 in a branch name, PR title, or description and Skarm
-> attaches the PR to that issue and keeps its status in sync — opened PRs
+> attaches the PR to that issue and keeps its status in sync - opened PRs
 > move issues to In Review, merged PRs mark them Done.
 
 Generate a webhook secret:
@@ -149,7 +149,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 For GitHub **Issues** sync (creating issues in repos from Skarm), also add
 under Repository permissions: **Issues: Read and write**. Then, on the app
 page after creation, note the **App ID** and generate a **private key**
-("Private keys" → Generate) — a `.pem` file downloads.
+("Private keys" → Generate) - a `.pem` file downloads.
 
 For **two-way sync** (GitHub → Skarm: edits, close/reopen, and comments on
 the linked GitHub issue reflected back), additionally subscribe to the
@@ -179,7 +179,7 @@ npx convex env set FIGMA_CLIENT_SECRET <client secret>
 3. In Skarm: Settings → Integrations → Figma → **Connect** (workspace
    admins only). Figma asks for read-only file access and redirects back.
 4. On any issue: sidebar → Figma → **+** → paste a link (or just paste a
-   figma.com URL into a description or comment — it auto-attaches). The
+   figma.com URL into a description or comment - it auto-attaches). The
    name, thumbnail, and "edited Xh ago" freshness stamp fill in a moment
    later; OAuth tokens are refreshed automatically when they expire.
 
@@ -191,8 +191,8 @@ What the integration does once connected:
   Figma" checkbox; the comment lands on the linked design (pinned to the
   frame for node links) as "Name via Skarm ENG-42: …".
 - **Dev Mode resources**: frame links push a resource onto the frame in
-  Figma Dev Mode — "ENG-42 · In Progress · Title" linking back to the
-  Skarm issue — renamed automatically when the status/title changes and
+  Figma Dev Mode - "ENG-42 · In Progress · Title" linking back to the
+  Skarm issue - renamed automatically when the status/title changes and
   removed when the link is removed. Requires `SITE_URL` to be set for the
   link to point at your app.
 
@@ -205,7 +205,7 @@ npx convex env set GITHUB_APP_SLUG <slug>
 npx convex env set GITHUB_WEBHOOK_SECRET <webhook secret from step 1>
 # For GitHub Issues sync (issue creation from Skarm):
 npx convex env set GITHUB_APP_ID <numeric app id>
-# Production only — where /github-setup redirects users after install.
+# Production only - where /github-setup redirects users after install.
 # Defaults to http://localhost:3000 when unset.
 npx convex env set SITE_URL https://your-app.example.com
 ```
@@ -224,7 +224,7 @@ npx convex env set GITHUB_PRIVATE_KEY ([Convert]::ToBase64String([IO.File]::Read
 npx convex env set GITHUB_PRIVATE_KEY "$(base64 -w0 path/to/key.pem)"
 ```
 
-Keep the `.pem` outside the repo — especially never in `public/`, which is
+Keep the `.pem` outside the repo - especially never in `public/`, which is
 served verbatim by Next.js.
 
 ### 3. Connect a workspace
@@ -233,7 +233,7 @@ In Skarm: Settings → Integrations → **Connect** (workspace admins only).
 GitHub opens its install screen where you select one, several, or all
 repositories, then redirects you back to the settings page. The granted
 repositories appear as chips and can be changed any time from the GitHub
-App's installation settings — the list re-syncs automatically.
+App's installation settings - the list re-syncs automatically.
 
 ### How it works
 
@@ -242,7 +242,7 @@ App's installation settings — the list re-syncs automatically.
   `github.com/apps/<slug>/installations/new?state=<nonce>`.
 - After you pick repositories, GitHub redirects to
   `<convex-site>/github-setup?installation_id=…&state=<nonce>`. Skarm
-  verifies the nonce and stores the installation id against the workspace —
+  verifies the nonce and stores the installation id against the workspace -
   that's the entire binding; no tokens or private keys are stored.
 - GitHub then delivers webhooks (HMAC-signed with the app secret) to
   `<convex-site>/github-webhook`:
@@ -269,7 +269,7 @@ App's installation settings — the list re-syncs automatically.
   timeline.
 - **System actor**: all automated events (issue sync, PR-driven status
   changes) appear in timelines and the inbox as **GitHub** with the GitHub
-  logo — never as a workspace user. Failures are recorded on the timeline
+  logo - never as a workspace user. Failures are recorded on the timeline
   too ("couldn't sync this issue to GitHub").
 
 ## AI models (chat + embeddings)
@@ -291,25 +291,25 @@ export const EMBEDDING_MODEL_ID = "nvidia/nv-embed-v1"; // 4096 dims
 
 Edit `CHAT_MODEL_ID` (and, for a different provider, the `createOpenAI`
 `baseURL` + the env var it reads). Deploy with `npx convex dev --once`.
-That's it — the chat model powers the agent chat, AI drafting, triage
+That's it - the chat model powers the agent chat, AI drafting, triage
 suggestions, and reports; none of them care which model responds.
 
-### Changing the embedding model — read this first
+### Changing the embedding model - read this first
 
 The embedding model powers semantic search and duplicate detection, and it
 has one hard constraint: **the vector index must declare exactly the number
 of dimensions the model outputs.**
 
-1. `EMBEDDING_MODEL_ID` in `convex/agent/models.ts` — the model.
+1. `EMBEDDING_MODEL_ID` in `convex/agent/models.ts` - the model.
 2. `dimensions:` in the issues table's `by_embedding` vector index in
-   [`convex/schema.ts`](../convex/schema.ts) — must equal the model's
+   [`convex/schema.ts`](../convex/schema.ts) - must equal the model's
    output size (nv-embed-v1 → 4096, OpenAI text-embedding-3-small → 1536,
-   etc. — check the model card).
+   etc. - check the model card).
 
 If they disagree, every duplicate check fails at runtime with
 `Expected a vector with dimensions X, received Y` (this exact bug shipped
 once: the index said 1536 while nv-embed-v1 emits 4096). Setting up a fresh
-deployment does NOT fix it — the mismatch is in the code.
+deployment does NOT fix it - the mismatch is in the code.
 
 **After switching models, stored embeddings are stale.** Vectors from the
 old model aren't comparable to vectors from the new one (even at the same
@@ -335,19 +335,19 @@ export const clearEmbeddings = internalMutation({
 ```
 
 `ensureOrgEmbeddings` (called automatically when AI surfaces mount) then
-re-embeds every issue in batches — no further action needed.
+re-embeds every issue in batches - no further action needed.
 
 ### Provider notes
 
 - The provider client is OpenAI-compatible (`createOpenAI` from
   `@ai-sdk/openai`); any OpenAI-compatible endpoint works by swapping
-  `baseURL` and the API-key env var (`NVIDIA_API_KEY` today — set it with
+  `baseURL` and the API-key env var (`NVIDIA_API_KEY` today - set it with
   `npx convex env set NVIDIA_API_KEY <key>`).
 - NVIDIA-specific request extras (`input_type`, `truncate`) live in
   `embedText` in [`convex/agent/embeddings.ts`](../convex/agent/embeddings.ts);
   remove or adapt them when leaving NVIDIA.
 - `isAiConfigured()` / `assertAiConfigured()` in `models.ts` gate every AI
-  entry point on the API key env var — update them if the env var name
+  entry point on the API key env var - update them if the env var name
   changes.
 
 ## Email digests (SMTP)
@@ -358,7 +358,7 @@ progress / mentions / needs-focus. An hourly cron
 (`convex/crons.ts` → `email/sendDigest.sweep`) delivers each member's
 digest once per local day; empty digests are skipped.
 
-Delivery is provider-agnostic SMTP (`convex/email/sendDigest.ts`) — Gmail,
+Delivery is provider-agnostic SMTP (`convex/email/sendDigest.ts`) - Gmail,
 AWS SES, Postmark, etc. Set on the Convex deployment
 (`npx convex env set …`):
 
@@ -375,12 +375,12 @@ Provider notes:
 
 - **Gmail**: create an [App Password](https://myaccount.google.com/apppasswords)
   (needs 2FA on the account) and use it as `SMTP_PASSWORD`. `SMTP_FROM` must be
-  that Gmail address. Easiest for testing — no identity/domain verification,
+  that Gmail address. Easiest for testing - no identity/domain verification,
   no sandbox. Watch the ~500 messages/day limit.
 - **AWS SES**: `SMTP_HOST=email-smtp.<region>.amazonaws.com` (the region must
   match where the SMTP creds were created). The from address/domain must be a
   **verified** SES identity, and while the account is in the SES **sandbox**
-  the recipient must be verified too — request production access to email
+  the recipient must be verified too - request production access to email
   anyone.
 - Template lives in `convex/email/template.ts`; a static preview is at
   `.docs/digest-email-preview.html`.
@@ -388,7 +388,7 @@ Provider notes:
 Testing:
 
 - **CLI** (no login, quickest pipe check):
-  `npx convex run email/sendDigest:testTo '{"to":"you@example.com"}'` —
+  `npx convex run email/sendDigest:testTo '{"to":"you@example.com"}'` -
   returns `sent: <id>` or the raw SMTP error (auth / region / unverified).
 - **Send test** on the Mail settings page emails the signed-in member their
   own real digest immediately, ignoring schedule guards.

@@ -5,7 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { PublicIssueView } from "@/components/share/public-issue-view";
 
 /**
- * Public read-only issue page — reachable signed-out (proxy.ts allows
+ * Public read-only issue page - reachable signed-out (proxy.ts allows
  * /share). The token in the URL is the entire capability; the Convex query
  * returns a sanitized view or null for revoked/unknown tokens.
  */

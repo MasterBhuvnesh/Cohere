@@ -1,7 +1,7 @@
 import { ComponentProps, JSX } from "react";
 
 /**
- * Comment-reaction icons — Twemoji (the open-source emoji set Discord uses),
+ * Comment-reaction icons - Twemoji (the open-source emoji set Discord uses),
  * CC BY 4.0 © Twitter/jdecked. Full-colour, so they render identically in
  * both themes. Keys stay the original emoji (variation selectors stripped by
  * reactionKey) so stored reactions need no migration.
@@ -56,7 +56,7 @@ function ReactionShip(props: IconProps) {
   );
 }
 
-/** Keyed by emoji with variation selectors stripped — see reactionKey. */
+/** Keyed by emoji with variation selectors stripped - see reactionKey. */
 export const REACTION_ICONS: Record<string, (props: IconProps) => JSX.Element> = {
   "👍": ReactionThumbsUp,
   "❤": ReactionHeart,

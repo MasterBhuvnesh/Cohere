@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SkarmLogo } from "@/components/shared/skarm-logo";
 
 /**
- * Marketing layout — Track F owns the landing page content, Track E owns
+ * Marketing layout - Track F owns the landing page content, Track E owns
  * /pricing. Keep this nav minimal; don't add app logic here.
  */
 const NAV_LINKS = [

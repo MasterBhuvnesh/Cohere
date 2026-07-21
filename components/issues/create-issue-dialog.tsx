@@ -312,7 +312,7 @@ export function CreateIssueDialog({
         chosenSubIssues.length > 0
           ? `Issue created with ${chosenSubIssues.length} sub-issue${chosenSubIssues.length === 1 ? "" : "s"}`
           : syncRepo
-            ? "Issue created — syncing to GitHub"
+            ? "Issue created - syncing to GitHub"
             : "Issue created"
       );
       onOpenChange(false);

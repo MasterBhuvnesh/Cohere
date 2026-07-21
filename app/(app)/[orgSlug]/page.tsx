@@ -15,7 +15,7 @@ import { StatusIcon } from "@/components/shared/status-icon";
 const CLOSED_STATUSES = new Set<IssueStatus>(["done", "canceled"]);
 
 /**
- * Workspace home — a "My Issues" dashboard of everything assigned to and
+ * Workspace home - a "My Issues" dashboard of everything assigned to and
  * created by the current user, or the empty state nudging team creation
  * (the sidebar has the create button).
  */

@@ -9,7 +9,7 @@ import {
 } from "./schema";
 
 /**
- * Email digests — the full case matrix:
+ * Email digests - the full case matrix:
  *
  * Time of day (user-local, via tzOffsetMinutes captured from the browser):
  *   morning → delivered in the 08:00 hour

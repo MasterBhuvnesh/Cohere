@@ -2,7 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 /**
- * Shared validators — import these from feature code instead of redefining.
+ * Shared validators - import these from feature code instead of redefining.
  * The schema is FROZEN for parallel track work: coordinate before editing this file.
  */
 export const issueStatusValidator = v.union(
@@ -178,7 +178,7 @@ export default defineSchema({
   comments: defineTable({
     orgId: v.id("organizations"),
     issueId: v.id("issues"),
-    /** Absent for external comments — see externalAuthor */
+    /** Absent for external comments - see externalAuthor */
     authorId: v.optional(v.id("users")),
     /** Display name of an external author (e.g. a GitHub login) */
     externalAuthor: v.optional(v.string()),
@@ -304,7 +304,7 @@ export default defineSchema({
     orgId: v.id("organizations"),
     /** Recipient */
     userId: v.id("users"),
-    /** Absent for automated events — see systemActor */
+    /** Absent for automated events - see systemActor */
     actorId: v.optional(v.id("users")),
     /** Automated actor (e.g. the GitHub integration) */
     systemActor: v.optional(v.literal("github")),
@@ -333,7 +333,7 @@ export default defineSchema({
   activity: defineTable({
     orgId: v.id("organizations"),
     issueId: v.id("issues"),
-    /** Absent for automated events — see systemActor */
+    /** Absent for automated events - see systemActor */
     actorId: v.optional(v.id("users")),
     /** Automated actor (e.g. the GitHub integration) */
     systemActor: v.optional(v.literal("github")),
@@ -355,7 +355,7 @@ export default defineSchema({
     /** Target date as ms since epoch */
     targetDate: v.optional(v.number()),
     color: v.optional(v.string()),
-    /** Legacy single repo — superseded by githubRepos */
+    /** Legacy single repo - superseded by githubRepos */
     githubRepo: v.optional(v.string()),
     /** Connected GitHub repos, "owner/name" */
     githubRepos: v.optional(v.array(v.string())),
@@ -437,7 +437,7 @@ export default defineSchema({
     }),
     /** JS getTimezoneOffset(): minutes to add to local time to reach UTC. */
     tzOffsetMinutes: v.number(),
-    /** Local date "YYYY-MM-DD" of the last delivery — the once-a-day guard. */
+    /** Local date "YYYY-MM-DD" of the last delivery - the once-a-day guard. */
     lastSentDay: v.optional(v.string()),
     lastSentAt: v.optional(v.number()),
   })

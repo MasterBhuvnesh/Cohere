@@ -7,7 +7,7 @@ export function Hero() {
   return (
     <section className="relative overflow-hidden">
       {/* Faint grid behind the hero copy: fully visible at the center, then
-          gradually thinning out to transparent on every side — including a
+          gradually thinning out to transparent on every side - including a
           clear bottom fade above the showcase (the grid layer only spans the
           copy area, so the ellipse fade lands inside the visible region). */}
       <div

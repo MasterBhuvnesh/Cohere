@@ -22,7 +22,7 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { matchSnippet } from "@/lib/utils";
 
 /**
- * Team issues list — the foundation vertical slice. Track A adds the board
+ * Team issues list - the foundation vertical slice. Track A adds the board
  * view, filtering, and saved views on top of this route's sibling pages.
  */
 export default function TeamIssuesPage() {

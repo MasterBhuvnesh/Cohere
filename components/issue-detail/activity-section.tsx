@@ -165,7 +165,7 @@ function describeActivity(entry: ActivityEntry): ReactNode {
     case "figma_linked":
       return <>linked a Figma design</>;
     case "cycle_changed":
-      // Values are raw cycle ids — not display-worthy, so stay generic.
+      // Values are raw cycle ids - not display-worthy, so stay generic.
       return newValue ? (
         <>moved this issue into a cycle</>
       ) : (
@@ -180,7 +180,7 @@ function describeActivity(entry: ActivityEntry): ReactNode {
     case "github_sync_failed":
       return (
         <>
-          couldn&apos;t sync this issue to GitHub —{" "}
+          couldn&apos;t sync this issue to GitHub -{" "}
           <Emphasis>{newValue}</Emphasis>
         </>
       );
@@ -224,7 +224,7 @@ export function ActivitySection({ issue }: IssueDetailSlotProps) {
       }));
     if (filter === "all") {
       for (const entry of activity ?? []) {
-        // Comments render themselves — skip their "commented" log entries.
+        // Comments render themselves - skip their "commented" log entries.
         if (entry.type === "commented") {
           continue;
         }
@@ -283,7 +283,7 @@ export function ActivitySection({ issue }: IssueDetailSlotProps) {
         </div>
       ) : items.length === 0 ? (
         <p className="py-2 text-xs text-muted-foreground">
-          No comments yet — start the conversation.
+          No comments yet - start the conversation.
         </p>
       ) : (
         <div className="flex flex-col gap-3">

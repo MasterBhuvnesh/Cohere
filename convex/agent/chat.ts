@@ -211,7 +211,7 @@ export const sendMessage = orgMutation({
 /**
  * Generate the assistant's reply asynchronously, streaming deltas over the
  * websocket. Tools receive the server-resolved org/user via the custom ctx
- * fields — never from model output.
+ * fields - never from model output.
  */
 export const streamResponse = internalAction({
   args: {

@@ -67,7 +67,7 @@ A modern issue tracker for teams that plan, track, and ship together. Multi-tena
 ### AI AGENT (PRO AND ENTERPRISE)
 
 - Workspace-aware chat with org-scoped tools: create, update, and search issues, summarize cycles, report project status
-- AI issue drafting: one-line idea → full spec with acceptance criteria, priority, estimate, labels, sub-issues, and relations to real existing issues — with prompt guidance, length control (short → thorough), rephrase, and discard
+- AI issue drafting: one-line idea → full spec with acceptance criteria, priority, estimate, labels, sub-issues, and relations to real existing issues - with prompt guidance, length control (short → thorough), rephrase, and discard
 - Duplicate detection via 4096-dim vector embeddings (NVIDIA NV-Embed) on every issue
 - Triage assist: AI-suggested priority and labels for new issues
 - Chat and drafting share one allowance: 50 messages/user/day on Pro, unlimited on Enterprise
@@ -123,11 +123,11 @@ pnpm dev   # runs Next.js and Convex in parallel
 
 Full setup lives in [`.docs/CONFIGURE.md`](../.docs/CONFIGURE.md):
 
-- **App setup** — `.env.local`, Clerk (JWT template, billing plans, webhooks), Convex env vars, deployment, and a troubleshooting table
-- **GitHub integration** — creating the GitHub App (webhook + setup URLs, permissions), `GITHUB_APP_SLUG` / `GITHUB_WEBHOOK_SECRET` / `GITHUB_APP_ID` / `GITHUB_PRIVATE_KEY` (base64) env vars, and how the install → webhook → sync flow works
-- **Figma integration** — creating the Figma OAuth app (redirect URI, granular scopes) and the `FIGMA_CLIENT_ID` / `FIGMA_CLIENT_SECRET` env vars
-- **Email digests** — SES SMTP env vars (`SES_SMTP_USER/PASSWORD/HOST`, `SES_FROM_EMAIL`, `APP_URL`), sandbox caveats, and the hourly delivery sweep
-- **AI models** — where the chat + embedding models live (`convex/agent/models.ts`) and the vector-index dimension rule for swapping embedding models
+- **App setup** - `.env.local`, Clerk (JWT template, billing plans, webhooks), Convex env vars, deployment, and a troubleshooting table
+- **GitHub integration** - creating the GitHub App (webhook + setup URLs, permissions), `GITHUB_APP_SLUG` / `GITHUB_WEBHOOK_SECRET` / `GITHUB_APP_ID` / `GITHUB_PRIVATE_KEY` (base64) env vars, and how the install → webhook → sync flow works
+- **Figma integration** - creating the Figma OAuth app (redirect URI, granular scopes) and the `FIGMA_CLIENT_ID` / `FIGMA_CLIENT_SECRET` env vars
+- **Email digests** - SES SMTP env vars (`SES_SMTP_USER/PASSWORD/HOST`, `SES_FROM_EMAIL`, `APP_URL`), sandbox caveats, and the hourly delivery sweep
+- **AI models** - where the chat + embedding models live (`convex/agent/models.ts`) and the vector-index dimension rule for swapping embedding models
 
 Once configured: open [http://localhost:3000](http://localhost:3000), sign up, create an organization, and you are in.
 
@@ -193,4 +193,4 @@ All tables are defined in [`convex/schema.ts`](../convex/schema.ts).
 
 ## DEPLOYMENT AND TROUBLESHOOTING
 
-Both covered in [`.docs/CONFIGURE.md`](../.docs/CONFIGURE.md) — Vercel + `npx convex deploy` steps, production env vars, and a table of common failures (JWT template naming, webhook secrets, missing env vars).
+Both covered in [`.docs/CONFIGURE.md`](../.docs/CONFIGURE.md) - Vercel + `npx convex deploy` steps, production env vars, and a table of common failures (JWT template naming, webhook secrets, missing env vars).

@@ -77,7 +77,7 @@ function Pill({
 }
 
 /**
- * Email digest settings — schedule (time of day + days) and content
+ * Email digest settings - schedule (time of day + days) and content
  * sections. Saved explicitly; the hourly server sweep delivers in the
  * member's local timezone (captured on save).
  */
@@ -133,7 +133,7 @@ export default function MailSettingsPage() {
   const handleTest = async () => {
     try {
       await sendTest();
-      toast.success("Test digest queued — check your inbox in a minute");
+      toast.success("Test digest queued - check your inbox in a minute");
     } catch {
       toast.error("Could not queue the test email");
     }

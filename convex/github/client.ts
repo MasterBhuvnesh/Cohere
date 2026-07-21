@@ -74,7 +74,7 @@ async function githubFetch<T>(
 }
 
 // ponytail: a fresh installation token per call (2 requests/op, tokens are
-// valid 1h) — cache them in a table if rate limits ever bite.
+// valid 1h) - cache them in a table if rate limits ever bite.
 async function installationToken(installationId: number): Promise<string> {
   const data = await githubFetch<{ token: string }>(
     appJwt(),
@@ -111,7 +111,7 @@ async function fetchInstallationRepos(
 }
 
 /**
- * Live list of repositories the org's installation can access — powers the
+ * Live list of repositories the org's installation can access - powers the
  * repo pickers. Auth: resolved from the caller's Clerk identity.
  */
 type RepositoryInfo = {
@@ -140,7 +140,7 @@ export const listRepositories = action({
 
 /**
  * Pull the installation's repo list from the API and store it, instead of
- * waiting for the installation webhook — which races with completeSetup and
+ * waiting for the installation webhook - which races with completeSetup and
  * is dropped if it arrives before the integration row exists (leaving the
  * settings repo list stuck "Syncing…"). Scheduled on connect and callable
  * from the settings page to self-heal an already-connected workspace.
@@ -226,7 +226,7 @@ export const pushIssue = internalAction({
 
 /**
  * Mirror the current title/description/status onto every linked GitHub
- * issue. Pushes the full state, so rapid successive edits are idempotent —
+ * issue. Pushes the full state, so rapid successive edits are idempotent -
  * the last scheduled push wins.
  */
 export const pushIssueUpdate = internalAction({

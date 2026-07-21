@@ -7,13 +7,13 @@ import { internalAction } from "../_generated/server";
 import { renderDigestHtml } from "./template";
 
 /**
- * SMTP delivery for email digests — provider-agnostic (Gmail, AWS SES,
+ * SMTP delivery for email digests - provider-agnostic (Gmail, AWS SES,
  * Postmark, …). Credentials live only in Convex env:
- *   SMTP_USER / SMTP_PASSWORD  — SMTP username + password (app password for Gmail)
- *   SMTP_HOST                  — e.g. smtp.gmail.com, email-smtp.<region>.amazonaws.com
- *   SMTP_PORT                  — defaults to 465 (implicit TLS)
- *   SMTP_FROM                  — sender the provider allows, "Skarm <you@example.com>"
- *   APP_URL                    — base URL used for links in the email
+ *   SMTP_USER / SMTP_PASSWORD  - SMTP username + password (app password for Gmail)
+ *   SMTP_HOST                  - e.g. smtp.gmail.com, email-smtp.<region>.amazonaws.com
+ *   SMTP_PORT                  - defaults to 465 (implicit TLS)
+ *   SMTP_FROM                  - sender the provider allows, "Skarm <you@example.com>"
+ *   APP_URL                    - base URL used for links in the email
  */
 
 function isEmailConfigured(): boolean {
@@ -67,7 +67,7 @@ export const testTo = internalAction({
     const info = await transport().sendMail({
       from: process.env.SMTP_FROM ?? "Skarm <no-reply@example.com>",
       to: args.to,
-      subject: "Skarm test email — SES SMTP is working",
+      subject: "Skarm test email - SES SMTP is working",
       html: `<div style="font-family:sans-serif;padding:24px;">
         <p style="font-size:16px;"><strong>&#10047; Skarm</strong></p>
         <p>This is a test email from your Skarm deployment. If you are reading
@@ -99,7 +99,7 @@ export const deliver = internalAction({
       (rows) => rows === null || rows.length === 0
     );
     if (empty && !args.force) {
-      // Nothing to report — skip today rather than sending an empty email.
+      // Nothing to report - skip today rather than sending an empty email.
       return null;
     }
 
@@ -112,7 +112,7 @@ export const deliver = internalAction({
       data.sections.mentions?.length &&
         `${data.sections.mentions.length} mentions`,
     ].filter(Boolean);
-    const subject = `Your ${data.orgName} digest${counts.length ? ` — ${counts.join(", ")}` : ""}`;
+    const subject = `Your ${data.orgName} digest${counts.length ? ` - ${counts.join(", ")}` : ""}`;
 
     await transport().sendMail({
       from: process.env.SMTP_FROM ?? "Skarm <no-reply@example.com>",

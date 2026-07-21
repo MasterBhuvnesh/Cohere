@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { SkarmLogo } from "@/components/shared/skarm-logo";
 
-/** Branded error boundary — replaces the framework's default "This page
+/** Branded error boundary - replaces the framework's default "This page
     couldn't load" screen. `reset` re-renders the failed segment. */
 export default function ErrorPage({
   error,
@@ -26,7 +26,7 @@ export default function ErrorPage({
       </p>
       <h1 className="text-xl font-semibold">This page couldn&apos;t load</h1>
       <p className="max-w-sm text-sm text-muted-foreground">
-        An unexpected error interrupted the page. It&apos;s usually temporary —
+        An unexpected error interrupted the page. It&apos;s usually temporary -
         try again, or head back to your workspace.
       </p>
       {error.digest && (

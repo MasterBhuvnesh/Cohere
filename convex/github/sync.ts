@@ -197,7 +197,7 @@ export const recordAttachmentComment = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     // The attachment may already be gone if it was removed while the push
-    // action was in flight — delete the orphan comment right away.
+    // action was in flight - delete the orphan comment right away.
     const attachment = await ctx.db.get(args.attachmentId);
     if (!attachment) {
       await ctx.scheduler.runAfter(
@@ -262,7 +262,7 @@ export const recordSyncFailure = internalMutation({
 });
 
 /** Our own sync footer, stripped from bodies that come back from GitHub. */
-// Matches both current (Skarm) and pre-rename (Cohere) footers — GitHub
+// Matches both current (Skarm) and pre-rename (Cohere) footers - GitHub
 // issues created before the rebrand still carry the old text.
 const SYNC_FOOTER = /\n*---\n_Synced from (?:Skarm|Cohere) issue \*\*.+?\*\*\._\s*$/;
 

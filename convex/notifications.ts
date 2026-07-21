@@ -199,7 +199,7 @@ export const unreadCount = orgQuery({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
-    // ponytail: capped at 100 — the badge shows "9+" long before this matters.
+    // ponytail: capped at 100 - the badge shows "9+" long before this matters.
     const unread = await ctx.db
       .query("notifications")
       .withIndex("by_user_read", (q) =>

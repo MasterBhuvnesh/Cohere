@@ -32,7 +32,7 @@ export const vectorAgent = new Agent<VectorAgentCtx>(components.agent, {
   tools: vectorTools,
   stopWhen: stepCountIs(12),
   contextOptions: {
-    // Recent thread history only — issue knowledge comes from tools.
+    // Recent thread history only - issue knowledge comes from tools.
     recentMessages: 30,
     searchOtherThreads: false,
   },

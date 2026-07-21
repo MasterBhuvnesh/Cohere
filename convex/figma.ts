@@ -15,7 +15,7 @@ import { insertFigmaLink, parseFigmaUrl } from "./lib/figmaLinks";
 
 /**
  * Figma designs linked to issues: previews (name, thumbnail, freshness),
- * comment posting, and Dev Mode resources — all through the org's OAuth
+ * comment posting, and Dev Mode resources - all through the org's OAuth
  * token (convex/integrations.ts owns the connect/token lifecycle;
  * convex/lib/figmaLinks.ts owns URL parsing and auto-detection).
  */
@@ -226,7 +226,7 @@ export const getLinkForFetch = internalQuery({
   },
 });
 
-/** Auth + all links for an issue — powers comment posting and dev sync. */
+/** Auth + all links for an issue - powers comment posting and dev sync. */
 export const getIssueFigmaContext = internalQuery({
   args: { issueId: v.id("issues") },
   returns: v.union(
@@ -484,7 +484,7 @@ export const fetchPreview = internalAction({
           });
           devResourceId = created.links_created?.[0]?.id;
         } catch (error) {
-          // Missing file_dev_resources:write scope is fine — previews still work.
+          // Missing file_dev_resources:write scope is fine - previews still work.
           console.error("Figma dev resource create failed", error);
         }
       }

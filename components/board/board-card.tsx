@@ -13,7 +13,7 @@ export type CardLabel = { labelId: string; name: string; color: string };
 export type CardAssignee = { name: string; imageUrl?: string };
 
 /**
- * Snapshot once per page load — overdue styling doesn't need to tick live,
+ * Snapshot once per page load - overdue styling doesn't need to tick live,
  * and React Compiler forbids impure calls like Date.now() during render.
  */
 const loadedAt = Date.now();
