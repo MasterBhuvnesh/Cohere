@@ -2,12 +2,13 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
-import { ChevronDown, ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { CircleUser, Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IssueRow } from "@/components/issues/issue-row";
 import { IssueStatus, STATUSES } from "@/components/shared/issue-meta";
 import { StatusIcon } from "@/components/shared/status-icon";
@@ -88,8 +89,8 @@ export default function WorkspaceHomePage() {
 
 function MyIssuesDashboard() {
   const data = useQuery(api.issues.myIssues);
+  const [tab, setTab] = useState<"assigned" | "created">("assigned");
   const [showClosed, setShowClosed] = useState(false);
-  const [createdOverride, setCreatedOverride] = useState<boolean | null>(null);
 
   const assigned = data?.assigned ?? [];
   const created = data?.created ?? [];
@@ -109,12 +110,53 @@ function MyIssuesDashboard() {
   const hasClosedAssigned = assigned.some((issue) =>
     CLOSED_STATUSES.has(issue.status)
   );
-  const createdExpanded = createdOverride ?? created.length <= 10;
 
   return (
     <>
-      <header className="flex h-12 shrink-0 items-center border-b px-4">
-        <span className="text-sm font-medium">My Issues</span>
+      <header className="flex h-12 shrink-0 items-center justify-between gap-4 border-b px-4">
+        <div className="flex items-center gap-2 text-sm">
+          <CircleUser className="size-4 text-muted-foreground" />
+          <span className="font-medium">My Issues</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {tab === "assigned" && hasClosedAssigned ? (
+            <button
+              onClick={() => setShowClosed((value) => !value)}
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {showClosed ? "Hide closed" : "Show closed"}
+            </button>
+          ) : null}
+          <Tabs
+            value={tab}
+            onValueChange={(value) => setTab(value as typeof tab)}
+          >
+            <TabsList className="h-7">
+              <TabsTrigger
+                value="assigned"
+                className="h-6 gap-1.5 px-2.5 text-xs"
+              >
+                Assigned to me
+                {assigned.length > 0 && (
+                  <span className="rounded bg-foreground/10 px-1 text-[10px] font-medium tabular-nums">
+                    {assigned.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger
+                value="created"
+                className="h-6 gap-1.5 px-2.5 text-xs"
+              >
+                Created by me
+                {created.length > 0 && (
+                  <span className="rounded bg-foreground/10 px-1 text-[10px] font-medium tabular-nums">
+                    {created.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </header>
       <ScrollArea className="min-h-0 flex-1">
         {data === undefined ? (
@@ -123,82 +165,44 @@ function MyIssuesDashboard() {
           </div>
         ) : assigned.length === 0 && created.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-32 text-center">
+            <CircleUser className="size-7 text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">
               Nothing assigned to you yet.
             </p>
           </div>
-        ) : (
-          <>
-            <section>
-              <div className="flex h-9 items-center justify-between gap-2 border-b bg-muted/30 px-4">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Assigned to me
-                </span>
-                {hasClosedAssigned ? (
-                  <button
-                    onClick={() => setShowClosed((value) => !value)}
-                    className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    {showClosed ? "Hide closed" : "Show closed"}
-                  </button>
-                ) : null}
-              </div>
-              {groupedAssigned.length === 0 ? (
-                <div className="px-4 py-6 text-sm text-muted-foreground">
-                  No open issues assigned to you.
-                </div>
-              ) : (
-                groupedAssigned.map(({ status, issues: groupIssues }) => (
-                  <section key={status.value}>
-                    <div className="flex h-9 items-center gap-2 bg-muted/50 px-4 text-sm">
-                      <StatusIcon status={status.value} />
-                      <span className="font-medium">{status.label}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {groupIssues.length}
-                      </span>
-                    </div>
-                    {groupIssues.map((issue) => (
-                      <IssueRow
-                        key={issue._id}
-                        issue={issue}
-                        teamKey={issue.teamKey}
-                      />
-                    ))}
-                  </section>
-                ))
-              )}
-            </section>
-
-            {created.length > 0 ? (
-              <section>
-                <button
-                  onClick={() => setCreatedOverride(!createdExpanded)}
-                  className="flex h-9 w-full items-center gap-2 border-b bg-muted/30 px-4 text-left"
-                >
-                  {createdExpanded ? (
-                    <ChevronDown className="size-3.5 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="size-3.5 text-muted-foreground" />
-                  )}
-                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Created by me
-                  </span>
+        ) : tab === "assigned" ? (
+          groupedAssigned.length === 0 ? (
+            <div className="py-20 text-center text-sm text-muted-foreground">
+              No open issues assigned to you.
+            </div>
+          ) : (
+            groupedAssigned.map(({ status, issues: groupIssues }) => (
+              <section key={status.value}>
+                <div className="flex h-9 items-center gap-2 bg-muted/50 px-4 text-sm">
+                  <StatusIcon status={status.value} />
+                  <span className="font-medium">{status.label}</span>
                   <span className="text-xs text-muted-foreground">
-                    {created.length}
+                    {groupIssues.length}
                   </span>
-                </button>
-                {createdExpanded
-                  ? created.map((issue) => (
-                      <IssueRow
-                        key={issue._id}
-                        issue={issue}
-                        teamKey={issue.teamKey}
-                      />
-                    ))
-                  : null}
+                </div>
+                {groupIssues.map((issue) => (
+                  <IssueRow
+                    key={issue._id}
+                    issue={issue}
+                    teamKey={issue.teamKey}
+                  />
+                ))}
               </section>
-            ) : null}
-          </>
+            ))
+          )
+        ) : created.length === 0 ? (
+          <div className="py-20 text-center text-sm text-muted-foreground">
+            You haven&apos;t created any issues yet.
+          </div>
+        ) : (
+          created.map((issue) => (
+            <IssueRow key={issue._id} issue={issue} teamKey={issue.teamKey} />
+          ))
         )}
       </ScrollArea>
     </>
